@@ -1,0 +1,347 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = $this->translate("report_price_comparison_pagetitle");
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array());	
+	$paginate->setFilterColumns(array("c.commodityid","l.regionid"));	
+	$paginate->setStartAndEndDateFilterColumn("cps.datecollected"); 
+	
+	$startdate = $request->startdate;
+	$enddate = $request->enddate;
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT c.commodityid, cps.sourceid as marketid, co.name AS 'Market',
+					(UNIX_TIMESTAMP(cps.datecollected) * 1000) as datecollected, c.retailprice, c.wholesaleprice 
+					FROM commoditypricedetails c 
+					INNER JOIN commoditypricesubmission cps ON c.submissionid = cps.id 
+					INNER JOIN pricesource co ON cps.sourceid = co.id
+					INNER JOIN location l ON co.locationid = l.id
+					WHERE cps.`status` = 'Approved' AND c.pricecategoryid = 2 AND (c.retailprice <> 0 AND c.wholesaleprice <> 0) ".$paginate->getSearchAndFilterSQL();
+								
+	# debugMessage($all_results_query);
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $all_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	
+	$marketsource= new LookupType(); 
+	$marketsource->setName("ALL_MARKET_SOURCES");
+	$allmarkets = $marketsource->getOptionValuesFromQuery();	
+
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 960px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+#listresults_div {
+	float: left;
+	width: 100%;
+	overflow:scroll;
+}
+#listresults_div h2 {
+	background: url("../images/report_header_bg.png");
+	background-repeat:repeat-x;
+	width:100%
+}
+table.list {
+	width:950px;
+}
+table.list thead tr td.normal {
+	vertical-align:middle;
+	text-align:center;
+	border:solid 1px #CCCCCC;
+}
+table.list tbody tr td {
+	border:solid 1px #CCCCCC;
+}
+label.error {	
+	display:inline;
+}
+</style>
+<script>
+$(document).ready(function(){
+	// change the date format since the short format with / corrupts the urls
+	datepickerOpts.dateFormat = '<?php echo $config->dateandtime->javascriptmediumformat; ?>'; 
+	$("#startdate, #enddate").datepicker(datepickerOpts); 
+	$("#pricereport").validate({
+		errorPlacement: function(error, element) {
+			if(element.attr("name") == "startdate"){
+				error.appendTo("#startdateerror");
+			}
+			if(element.attr("name") == "enddate" ){
+				error.appendTo("#enddateerror");
+			}
+			if(element.attr("name") == "<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid';?>" ){
+				error.appendTo("#commodityerror");
+			}
+			if(element.attr("name") == "pricetype" ){
+				error.appendTo("#pricetypeerror");
+			}
+			
+		},	
+		rules: {
+			startdate: "required",		
+			enddate: {
+				"required": true, 					
+				enddateafterstartdate: true
+			},
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid';?>: "required",
+			pricetype: "required"				
+		}, 
+		// the messages for each of the fields being validated
+		messages: {				
+			startdate: "Select a Start Date",			
+			enddate: {
+				"required": "Select an End Date"
+			},
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid';?>: "Select a commodity",
+			pricetype: "Select a Price Type"	
+		}
+	});	
+	
+	// check all choice options when page loads
+	$('#choiceoptions-0').click();
+	// trigger to check or uncheck all checkboxes
+	$('#choiceoptions-0').click(function () {
+		var checked_status = this.checked;
+		// alert("status is "+checked_status);
+		$(".checkbox").each(function(){
+			this.click();
+			this.checked = checked_status;
+		});
+	});
+});
+</script>
+<h2><?php echo $title; ?></h2>
+<form action="<?php echo $this->baseUrl("report/pricecomparison"); ?>" method="get" id="pricereport">
+  <table class="reportfiltercontainer">
+    <tr>
+      <td><table class="reportfiltersection">
+          <tr>
+            <td class="label">Start Date:<span class="requiredmark">*</span></td>
+            <td><input name="startdate"  id="startdate" type="text"  class="datefield startdate autosubmitsearchform" value="<?php echo $startdate; ?>" /></td>
+            <td class="label">End Date:<span class="requiredmark">*</span></td>
+            <td><input name="enddate" id="enddate" type="text" class="datefield autosubmitsearchform"  value="<?php echo $enddate; ?>" /></td>
+            <td><?php
+			      	$commoditylist = new LookupType(); 
+			      	$commoditylist->setName("ALL_COMMODITIES");
+			       	$commoditydropdown = new Zend_Form_Element_Select('c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Commodities'), $commoditylist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+										)
+									);
+					$commoditydropdown->setValue(array($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid'))); 
+					echo $commoditydropdown->render(); 
+			?></td>
+            <td><?php
+				$type = new Zend_Form_Element_Select('pricetype',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'All Price Types', '1' => 'Retail Prices', '2' => 'Wholesale Prices')),
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+									)
+								);
+				$type->setValue($request->getParam('pricetype')); 
+				echo $type->render(); 
+			  ?></td>
+          </tr>
+          <tr>
+		  	<td colspan="2"><div id="startdateerror">&nbsp;</div></td>
+            <td colspan="2"><div id="enddateerror"></div></td>
+            <td><div id="commodityerror"></div></td>
+            <td><div id="pricetypeerror"></div>
+				<?php
+					$regionlist = new LookupType(); 
+					$regionlist->setName("ALL_REGIONS");
+					$regiondropdown = new Zend_Form_Element_Select('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Regions'), $regionlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('autosubmitsearchform','filterselect', 'chzn-select'),
+											'title' => 'Filter Users By Region'
+										)
+									);
+					$regiondropdown->setValue($request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid')); 
+					echo $regiondropdown->render(); 
+				  ?>
+            </td>
+          </tr>
+        </table></td>
+      <td align="left"><table>
+          <tr>
+            <td><button type="submit" class="positiveaction" title="Click here to Generate Report"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Generate Report</button>
+              <input type="hidden" name="generate" value="true" /></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+</form>
+<?php if (!isEmptyString($request->generate)) { ?>
+<?php
+	  	// execute the query and generate data only after the report options have been selected
+		$result = $conn->fetchAll($all_results_query);
+	
+		$has_no_data = (count($result) == 0) ? true : false; 
+		
+		# This variable stores the number of redundant columns returned in the query so that when we are printing
+		# we are able to know how many columns to ignore. This variable is sent in the print URL
+		$number_of_redundant_columns = 3;
+		
+		# the columns which contain numbers in the invoice query
+		# Please note that the column count begins at 0
+		$export_number_column_list = "";
+
+		// show a message that there are no items to display
+		if ($has_no_data) {
+			$this->headTitle("No Data for Price Comparison Report"); 
+	?>
+<div class="norecords"><label class="error"><?php echo $this->translate("report_global_norecords_label"); ?></label></div>
+<?php } else { 
+	  	$commodity = new Commodity();
+	  	$commodity->populate($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')); 
+	  	
+	  	$title = "Viewing Prices for '".$commodity->getName()."' from ".$request->startdate." to ".$request->enddate; 
+	  	$this->headTitle($title);
+	  
+	  	?>
+<h1 style="margin-left:100px;"><?php echo $title; ?></h1><br />
+<div id="placeholder"></div>
+<div id="legend"></div>
+<?php
+			// build a data array to format the data into FLOT format
+			$data = array(); 
+			// market options
+			$datasets = array(); 
+			foreach ($result as $line) {
+				$datasets[$line['marketid']] = $line['Market']; 
+				// select whether the wholesale or retail data
+				if ($request->pricetype == 1) {
+					// retail price
+					if (intval($line['retailprice']) != 0) {
+						$data[$line['marketid']][$line['datecollected']] = $line['retailprice'];
+					}
+				} else {
+					// wholesale price
+					if (intval($line['wholesaleprice']) != 0) {
+						$data[$line['marketid']][$line['datecollected']] = $line['wholesaleprice'];
+					}
+				} 
+			}
+			asort($datasets);
+			$datasets = str_replace('Market','', $datasets);
+			// debugMessage($datasets);
+			// debugMessage($data);
+		?>
+<p id="choices">
+<b>Filter Markets</b>
+  <?php
+			$choiceoptions = new Zend_Form_Element_MultiCheckbox('choiceoptions',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('0' => 'All'), $datasets),								
+											'decorators' => array('ViewHelper')
+										)
+									);
+			// check all the options
+			$choiceoptions->setValue(array_keys($datasets));
+			$choiceoptions->setSeparator("&nbsp;&nbsp;&nbsp;"); 
+			echo $choiceoptions->render(); 
+		?>
+</p>
+<script type="text/javascript">
+	$(function () {
+		 var datasets = {
+			  <?php
+			  	// loop through the data sets
+			  	$flotdata = array(); 
+			  	foreach ($datasets as $marketid => $marketname) {
+					$marketname = str_replace('Market','',$marketname);
+			  		// open the data set array
+			  		$str = '"'.$marketid.'": {';
+			  		// add the label
+			  		$str .= 'label:"'.htmlentities($marketname).'", ';
+			  		// open the data array
+			  		$str .= 'data: [';
+			  		$tmp_mktdata = array(); // use an array which will be imploded later
+			  		$mktprices = $data[$marketid];
+			  		foreach ($mktprices as $date => $price) {
+			  			$tmp_mktdata[] = '['.$date.','.$price.']';
+			  		} 
+			  		// add the prices for the market
+			  		$str .= implode(",", $tmp_mktdata);
+			  		// close the data array
+			  		$str .= ']';
+			  		// close the data set array 
+			  		$str .= '}';
+			  		$flotdata[] = $str; 
+			  	}
+			  	echo implode(",", $flotdata);
+			  ?>
+		 };
+		
+		 // hard-code color indices to prevent them from shifting as
+		 // countries are turned on/off
+		 var i = 0;
+		 $.each(datasets, function(key, val) {
+			  val.color = i;
+			  ++i;
+		 });
+		 
+		  $("#choices input").click(plotAccordingToChoices);
+	
+		 
+		 function plotAccordingToChoices() {
+			  var data = [];
+	
+			  $("#choices input:checked").each(function () {
+					var key = $(this).attr("value");
+					if (key && datasets[key])
+						 data.push(datasets[key]);
+			  });
+	
+			  if (data.length > 0)
+					$.plot($("#placeholder"), data, {
+						 xaxis: { 
+						 	mode: "time", 
+							timeformat: "%d/%m/%y" 
+						},
+						 lines: {show: true},
+						 points: {show: true},
+						 legend: {container: $("#legend")}
+					});			
+		 }
+	
+		 plotAccordingToChoices();		 
+		
+	});
+	</script>
+<br />
+<br/>
+
+<br style="clear:both;" /><br /><br /><br /><br />
+
+
+<?php			
+		} // end check that there are results    	
+	?>
+<?php } // end check that the report generate request has been sent ?>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

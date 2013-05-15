@@ -1,0 +1,197 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("commodityprice_retail_pagetitle_list");
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("ps.status","s.name"));
+	$paginate->setFilterColumns(array("ps.status","ps.collectedbyid","ps.sourceid"));
+	$paginate->setDefaultSortBy("ps.datecollected");	
+	$paginate->setDefaultSortOrder("DESC");
+	$paginate->setStartAndEndDateFilterColumn("ps.datecollected"); 
+	
+	$can_approve_prices = false;
+	if ($acl->checkPermission('Retail Price', ACTION_APPROVE)){
+		$can_approve_prices = true;
+	} 
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT ps.id AS id, ps.collectedbyid as collectedbyid, ps.sourceid AS sourceid,  DATE_FORMAT(ps.datecollected, '".$config->dateandtime->mysqlmediumformat."') as `Date Collected`, s.name as `Retail Source`, concat(u.firstname,' ',u.lastname) AS `Collected By`, ps.status as `Status` FROM commoditypricesubmission AS ps Inner Join useraccount AS u ON ps.collectedbyid = u.id Inner Join pricesourcecategory AS pc ON (ps.sourceid = pc.pricesourceid AND pc.pricecategoryid = 1) Inner Join pricesource AS s ON (pc.pricesourceid = s.id) WHERE ps.id <> '' ".$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+	
+	# debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 3;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+	
+?>
+<script>
+$(document).ready(function(){
+	// change the date format since the short format with / corrupts the urls
+	datepickerOpts.dateFormat = '<?php echo $config->dateandtime->javascriptmediumformat; ?>'; 
+	$("#startdate, #enddate").datepicker(datepickerOpts); 
+	$("#priceform").validate({
+		errorPlacement: function(error, element) {
+			error.appendTo("#errormessage");
+		},
+		rules: {			
+			enddate: {					
+				enddateafterstartdate: true
+			}				
+		}
+	});
+	
+	$("#priceform .approve").click(function(){
+		if(window.confirm("Are you sure you want to Approve these Prices? \n Click OK to confirm or Cancel to stay on this page.")){				
+			return true;
+		} else {
+			return false;
+		}
+	});
+});
+</script>
+<h2><?php echo $title; ?></h2>
+<form action="<?php echo $this->baseUrl("retailprice/listsearch"); ?>" method="get" id="priceform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td>Start Date:&nbsp;</td>
+            <td><input name="startdate"  id="startdate" type="text" class="datefield startdate autosubmitsearchform" value="<?php echo $request->startdate; ?>" title="Filter Prices From" /></td>
+            <td>End Date:&nbsp;</td>
+            <td><input name="enddate" id="enddate" type="text" class="datefield autosubmitsearchform"  value="<?php echo $request->enddate; ?>" title="Filter Prices To" />
+              &nbsp;&nbsp;<br />
+              <div id="errormessage"></div></td>
+          </tr>    
+          <tr>
+          	<td>&nbsp;</td>
+            <td><?php
+					$retailsource= new LookupType(); 
+					$retailsource->setName("ALL_RETAIL_SOURCES");
+					$source = new Zend_Form_Element_Select('ps'.HTML_TABLE_COLUMN_SEPARATOR.'sourceid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Sources'), $retailsource->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('filterselect', 'chzn-select'),
+											'title' => 'Filter Prices By Price Source'
+										)
+									);
+					$source->setValue($request->getParam('ps'.HTML_TABLE_COLUMN_SEPARATOR.'sourceid')); 
+					echo $source->render(); 
+						
+                ?></td>
+            <td>&nbsp;</td>
+            <td><?php
+					$submissionstatus = new LookupType(); 
+					$submissionstatus->setName("ALL_PRICE_SUBMISSION_STATUS");
+					$sts = new Zend_Form_Element_Select('ps'.HTML_TABLE_COLUMN_SEPARATOR.'status',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Statuses'), $submissionstatus->getOptionValues()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('filterselect', 'chzn-select'),
+											'title' => 'Filter Prices By Status'
+										)
+									);
+					$sts->setValue($request->getParam('ps'.HTML_TABLE_COLUMN_SEPARATOR.'status')); 
+					echo $sts->render(); 
+                ?></td>
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="Enter your search term here and click search" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="Click here to Search or Filter"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Search</button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("commodityprice_retail_list_norecords"); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("commodityprice_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>
+  <?php if ($acl->checkPermission('Retail Price', ACTION_EXPORT)) { ?>
+  	<div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <div id="listresults_div">
+    <h2><?php echo $title; ?></h2>
+    <table class="list">
+      <thead>
+        <tr>
+          <?php if ($acl->checkPermission('Retail Price', ACTION_EDIT)) { ?>
+          <td>Edit</td>
+          <?php } ?>
+          <td>Details</td>
+          <td><?php echo $paginate->getSortLinkForColumn('ps.datecollected','Date Collected'); ?></td>
+          <td><?php echo $paginate->getSortLinkForColumn('','Retail Source'); ?></td>
+          <?php if($can_approve_prices){ ?>
+	          <td><?php echo $paginate->getSortLinkForColumn('','Collected By'); ?></td>
+          <?php } ?>
+          <td><?php echo $paginate->getSortLinkForColumn('ps.status','Status'); ?></td>
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+            	foreach($result as $line){							
+            ?>
+        <tr>
+		  <?php if ($acl->checkPermission('Retail Price', ACTION_EDIT)) { ?>
+          	<?php if(($line['collectedbyid'] == $userid && $line['Status'] != "Approved") || ($acl->checkPermission('Approved Price', ACTION_EDIT)) ){ ?>			
+          		<td><a href="<?php echo $this->baseUrl("retailprice/index/id/".encode($line['id'])); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>"/></a></td>
+          	<?php } else { ?>
+          	<td><a href="#" title="Entry is not editable">---</a></td>
+          	<?php } ?>
+          <?php } ?>
+          <td><a class="dialog" title="<?php echo $this->translate("commodityprice_retail_pagetitle_view"); ?>" href="<?php echo $this->baseUrl("retailprice/view/id/".encode($line['id'])); ?>">view</a></td>
+          <td><?php echo $line['Date Collected']; ?></td>
+          <td><?php echo $line['Retail Source']; ?></td>
+          <?php if($can_approve_prices){ ?>
+	          <td><?php echo $line['Collected By']; ?></td>
+          <?php } ?>    
+          <td><?php echo $line['Status']; ?></td>
+        </tr>
+        <?php 						
+            	} // end processing results 
+            ?>
+      </tbody>
+    </table>
+  </div>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

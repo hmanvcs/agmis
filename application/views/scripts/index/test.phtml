@@ -1,0 +1,60 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$pricesubmission = new CommodityPriceSubmission();
+	
+	$posturl = $this->baseUrl("inputprice/create");
+	$title = $this->translate("commodityprice_input_pagetitle_new"); 
+	$button_title_save = $this->translate("commodityprice_save_button_new"); 
+	$button_title_submit = $this->translate("commodityprice_submit_button_new"); 
+	
+	// debugMessage($pricesubmission->getCollectedBy()->toArray());
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$pricesubmission->populate(decode($request->id));
+		$title = $this->translate("commodityprice_input_pagetitle_edit"); 		
+		$posturl = $this->baseUrl("inputprice/edit"); 
+	} else {
+		# set default value of submitted by to the loggedin user
+		$pricesubmission->setCollectedByID($userid);
+		# set default collection date to todays date
+		$pricesubmission->setDateCollected(date($config->dateandtime->mediumformat));	
+	}
+	
+	# Fetch Existing Price Details for the current submission
+	$commodities = array();
+	$commodities = $pricesubmission->getCurrentPriceDetails(5);	
+	#in case of errors in session, populate the fields from session
+	
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$formvalues = $session->getVar(FORM_VALUES);		
+		$pricesubmission->processPost($formvalues);
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		
+		var array = ["2013-05-08","2013-05-15","2013-05-22"];
+		datepickerOpts.beforeShowDay = function(date){
+										var string = jQuery.datepicker.formatDate('yy-mm-dd', date);
+										return [ array.indexOf(string) == -1 ]
+									} 
+		$("#datecollected").datepicker(datepickerOpts); 
+		
+	});
+
+</script>
+<form id="priceform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_datecollected_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="datecollected" id="datecollected" class="datefield" value="<?php echo changemySQlDatetoPageFormat($pricesubmission->getDateCollected()); ?>" /></td>
+    </tr>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

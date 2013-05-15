@@ -1,0 +1,79 @@
+<?php 
+
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$landingsite = new LandingSite();
+	
+	// default title is to enable adding any landingsite
+	$title = $this->translate("landingsite_pagetitle_view"); 
+	$landingsite->populate(decode($request->id));
+		
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Landing Site? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 		
+	}); 
+</script>
+<div class="pageinfo"><?php echo $this->translate("landingsite_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $title; ?></td>
+  </tr>  
+  <tr>
+    <td class="label"><?php echo $this->translate("landingsite_name_label"); ?>:</td>
+    <td><?php echo $landingsite->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("landingsite_description_label"); ?>:</td>
+    <td><?php echo $landingsite->getDescription(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("landingsite_waterbodyid_label"); ?>:</td>
+    <td><?php echo $landingsite->getWaterbody()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("landingsite_districtid_label"); ?>:</td>
+    <td><?php echo $landingsite->getDistrict()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("landingsite_subcountyid_label"); ?>:</td>
+    <td><?php echo $landingsite->getSubcounty()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("landingsite_parishid_label"); ?>:</td>
+    <td><?php echo $landingsite->getParish()->getName(); ?></td>
+  </tr>
+</table>
+<br />
+<table class="formtable">
+  <tfoot>
+    <tr>
+      <td>	  	
+        <?php if ($acl->checkPermission('Landing Site', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('landingsite/delete/entityname/LandingSite/id/'.encode($landingsite->getID()).'/'.SUCCESS_MESSAGE.'/Landing Site has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("landingsite/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("landingsite_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("landingsite_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Landing Site', ACTION_EDIT)) { ?>        
+        <a href="<?php echo $this->baseUrl('landingsite/index/id/'.encode($landingsite->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("landingsite_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("landingsite_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Landing Site', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('landingsite/list'); ?>" class="positiveaction" title="<?php echo $this->translate("landingsite_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("landingsite_button_list"); ?></a>
+        <?php } ?>
+      </td>
+    </tr>
+  </tfoot>
+</table>
+<?php 
+
+	require_once APPLICATION_PATH.'/includes/footer.php';
+
+?>

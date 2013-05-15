@@ -1,0 +1,97 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("handcraft_pagetitle_list");
+	$this->headTitle($title);
+	
+	
+	$request->setParam('c__locationid', decode($request->locationid));	
+		
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("l.name"));
+	$paginate->setDefaultSortBy("co.name");	
+	$paginate->setFilterColumns(array("l.locationid"));
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT h.id, l.name AS `Location`, co.name AS `Commodity`, h.materialsource AS `Material Source`, h.`materialtype` AS `Material Type`, h.`market` AS `Markets`, h.`creditsource` AS `Sources of Credit` FROM handcraftinformation AS h LEFT JOIN location l ON (h.locationid = l.id) LEFT JOIN commodity co ON (h.commodityid = co.id)".$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";	
+?>
+
+<form action="<?php echo $this->baseUrl("handcraftsector/handcraftsectorinfolist/listsearch"); ?>" method="get" id="handcraftsectorinfolistform">
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("handcraft_list_norecords"); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("handcraft_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="listresults_div">
+    <h2><?php echo $title; ?></h2>
+    <table class="list">
+      <thead>
+        <tr>
+          <td align="left" style="width:200px;"><?php echo $this->translate("handcraft_commodity_label"); ?></td>
+          <td><?php echo $this->translate("handcraft_materialsource_label"); ?></td>
+          <td><?php echo $this->translate("handcraft_materialtype_label"); ?></td>
+          <td><?php echo $this->translate("handcraft_market_label"); ?></td>
+          <td><?php echo $this->translate("handcraft_creditsource_label"); ?></td>
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+            	foreach($result as $line){							
+            ?>
+        <tr>
+          <td class="nowrapping"><b><?php echo $line['Commodity']; ?></b></td>
+          <td class="nowrapping"><?php echo $line['Material Source']; ?></td>
+          <td class="nowrapping"><?php echo $line['Material Type']; ?></td>
+          <td class="nowrapping"><?php echo $line['Markets']; ?></td>
+          <td class="nowrapping"><?php echo $line['Sources of Credit']; ?></td>
+        </tr>
+        <?php 						
+            	} // end processing results 
+            ?>
+      </tbody>
+      <?php if ($acl->checkPermission('Handcraft Sector Information', ACTION_EDIT)) { ?>
+      <tr>
+        <td align="center" colspan="5"><a href="<?php echo $this->baseUrl("handcraftsector/handcraftsectorinfo/locationid/".$request->locationid); ?>" class="positiveaction" title="<?php echo $this->translate("handcraftinfo_button_update"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("handcraftinfo_button_update"); ?></a></td>
+      </tr>
+      <?php } ?>
+    </table>
+  </div>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

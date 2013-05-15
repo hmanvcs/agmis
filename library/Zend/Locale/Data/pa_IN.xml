@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ldml>
+	<identity>
+		<version number="$Revision: 1.2 $"/>
+		<generation date="$Date: 2011/10/06 12:01:36 $"/>
+		<language type="pa"/>
+		<territory type="IN"/>
+	</identity>
+	<alias source="pa_Guru_IN" path="//ldml"/>
+</ldml>

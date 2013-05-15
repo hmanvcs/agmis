@@ -1,0 +1,134 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$boat = new Boat(); 
+	
+	// default title is to enable adding any boat
+	$title = $this->translate("boat_pagetitle_new"); 
+	$posturl = $this->baseUrl("boat/create");
+	$button_title = $this->translate("boat_button_new"); 
+	
+	// set the boat if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$boat->populate(decode($request->id));
+		$title = sprintf($this->translate("boat_pagetitle_edit"), $boat->getName()); 
+		$button_title = $this->translate("boat_button_edit");
+		$posturl = $this->baseUrl("boat/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$boat->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {		
+		$("#boatform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				owner: "required",
+				name: "required",
+				type: "required",
+				landingsiteid: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				owner: "<?php echo $this->translate("boat_owner_error"); ?>",
+				name: "<?php echo $this->translate("boat_name_error"); ?>",
+				type: "<?php echo $this->translate("boat_type_error"); ?>",
+				landingsiteid: "<?php echo $this->translate("boat_landingsite_error"); ?>"
+			}
+		});
+
+	});
+</script>
+<style>
+select.chzn-select {
+	min-width:200px;
+}
+</style>
+<div class="pageinfo"><?php echo $this->translate("boat_page_info"); ?></div>
+<form id="boatform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>    
+    <tr>
+      <td class="label"><?php echo $this->translate("boat_owner_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="owner" id="owner" value="<?php echo $boat->getOwner(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("boat_name_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        <td><input type="text" name="name" id="name" value="<?php echo $boat->getName(); ?>" /></td>
+    </tr>    
+    <tr>
+      <td class="label"><?php echo $this->translate("boat_type_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        <td><?php
+			$typelist = new LookupType(); 
+			$typelist->setName("BOAT_TYPES"); 
+			$typedropdown = new Zend_Form_Element_Select('type',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $typelist->getOptionValuesAndDescription()),								
+									'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array('chzn-select')
+								)
+							);
+			$typedropdown->setValue($boat->getType()); 
+			echo $typedropdown->render(); 
+      ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("boat_landingsite_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        <td><?php
+				$landingsite = new Zend_Form_Element_Select('landingsiteid',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getLandingSitesForLocation("")),								
+									'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array('chzn-select')
+								)
+							);
+				
+				$landingsite->setValue($boat->getLandingSiteID());				
+				echo $landingsite->render(); 
+			?>
+      </td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("boat_regno_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        <td><input type="text" name="regno" id="regno" value="<?php echo $boat->getRegno(); ?>" /></td>
+    </tr> 
+     <tr>
+      <td class="label"><?php echo $this->translate("boat_description_label"); ?>:</td>
+      <td><textarea class="expanding" id="description" name="description"><?php echo $boat->getDescription(); ?></textarea></td>
+    </tr>
+  </table>
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("boat/list"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Boat" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($boat->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>
+   

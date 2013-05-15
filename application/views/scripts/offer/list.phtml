@@ -1,0 +1,230 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("offer_pagetitle_list");
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("o.contact", "l.name", "o.telephone", "c.name"));
+	$paginate->setDefaultSortBy("o.datecreated");	
+	$paginate->setDefaultSortOrder("DESC");	
+	$paginate->setFilterColumns(array("o.locationid", "o.commodityid", "o.offertype"));
+	$paginate->setStartAndEndDateFilterColumn("o.datecreated");
+	
+	# custom query to check for expired offers
+	if(isEmptyString($request->isactive)){		
+		$active_query = "";
+	}
+	if($request->isactive == 'Y'){		
+		$active_query = " AND TO_DAYS(o.expirydate) > TO_DAYS(NOW()) ";
+	}
+	if($request->isactive == 'N'){		
+		$active_query = " AND TO_DAYS(o.expirydate) < TO_DAYS(NOW()) ";
+	}
+	$title_addition = "";
+	if(!isEmptyString($request->expirestart) && !isEmptyString($request->expireend) ){
+		$start = changeDateFromPageToMySQLFormat($request->expirestart);
+		$end = changeDateFromPageToMySQLFormat($request->expireend);		
+		$active_query = " AND (TO_DAYS(o.expirydate) BETWEEN TO_DAYS('".$start."') AND TO_DAYS('".$end."'))";
+	}
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT o.id as `id`, o.createdby as `createdby`, c.name as `Commodity`, if(o.offertype='0', 'Sell','Buy') as `Offer Type`, if(ISNULL(cu.name),o.quantity,concat(o.quantity,' ',cu.name)) as `Quantity`, FORMAT(price,".$config->currency->decimalplaces.") as `Price`, DATE_FORMAT(o.datecreated, '".$config->dateandtime->mysqlmediumformat."') as `Date Posted`, DATE_FORMAT(o.expirydate, '".$config->dateandtime->mysqlmediumformat."') as `Expiry Date`, o.contact as `Contact`, o.telephone as `Telephone`, l.name as `District` FROM offer o INNER JOIN commodity c ON o.commodityid = c.id LEFT JOIN commodityunit cu ON c.unitid = cu.id INNER JOIN location l ON o.locationid = l.id 	WHERE o.contact <> '' ".$paginate->getSearchAndFilterSQL()."".$active_query."".$paginate->getSortSQL();
+			
+	# debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 2;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+?>
+<script>
+$(document).ready(function(){
+	// change the date format since the short format with / corrupts the urls
+	datepickerOpts.dateFormat = '<?php echo $config->dateandtime->javascriptmediumformat; ?>'; 
+	$("#startdate, #enddate").datepicker(datepickerOpts); 
+	$("#offerform").validate({
+		errorPlacement: function(error, element) {
+			error.appendTo("#errormessage");
+		},
+		rules: {			
+			enddate: {					
+				enddateafterstartdate: true
+			}				
+		}
+	});
+});
+</script>
+
+<form action="<?php echo $this->baseUrl("offer/listsearch"); ?>" method="get" id="offerform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td>Start Date:&nbsp;<br />
+              <input name="startdate"  id="startdate" type="text"  class="datefield startdate autosubmitsearchform" value="<?php echo $request->startdate; ?>" title="Filter Offers From" /></td>
+            <td>End Date:&nbsp;<br /><input name="enddate" id="enddate" type="text" class="datefield autosubmitsearchform"  value="<?php echo $request->enddate; ?>"title="Filter Offers To" />
+              &nbsp;&nbsp;<br />
+              <div id="errormessage"></div></td>
+            <td><?php 
+				$offertypelist = new LookupType(); 
+				$offertypelist->setName("OFFER_TYPE"); 
+				$pf = new Zend_Form_Element_Select('o'.HTML_TABLE_COLUMN_SEPARATOR.'offertype',
+						array(
+							'multiOptions' => array_merge_maintain_keys(array('' => 'All Offer Types'), $offertypelist->getOptionValuesAndDescription()), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper'),
+							'class' => array('filterselect', 'chzn-select'),
+							'title' => 'Filter Offers By Type'		
+						)
+					);
+					$pf->setValue($request->getParam('o'.HTML_TABLE_COLUMN_SEPARATOR.'offertype'));
+					echo $pf->render();
+				
+				?></td>
+          </tr>
+          <tr>
+            <td><?php
+				$commoditylist = new LookupType(); 
+				$commoditylist->setName("ALL_COMMODITIES");
+				$commoditydropdown = new Zend_Form_Element_Select('o'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'All Commodities'), $commoditylist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('filterselect', 'chzn-select'),
+										'title' => 'Filter Offers By Commodity'		
+									)
+								);
+				$commoditydropdown->setValue($request->getParam('o'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')); 
+				echo $commoditydropdown->render(); 
+			  ?></td>
+            <td><?php
+				$districtlist = new LookupType(); 
+				$districtlist->setName("ALL_DISTRICTS");
+				$districtdropdown = new Zend_Form_Element_Select('o'.HTML_TABLE_COLUMN_SEPARATOR.'locationid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'All Districts'), $districtlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('filterselect', 'chzn-select'),
+										'title' => 'Filter Offers By District'		
+									)
+								);
+				$districtdropdown->setValue($request->getParam('o'.HTML_TABLE_COLUMN_SEPARATOR.'locationid')); 
+				echo $districtdropdown->render(); 
+			  ?></td>
+            <td><?php				      
+				$cb = new Zend_Form_Element_Select('isactive',
+							array(
+								'multiOptions' => array('' => 'All Offers', 'Y' => 'Current Offers', 'N' => 'Expired Offers'),	
+								'view' => new Zend_View(),								
+								'decorators' => array('ViewHelper'),
+								'class' => array('filterselect', 'chzn-select'),
+								'title' => 'Filter Offers By Expire Status'		
+							)
+				);
+				$cb->setValue($request->getParam('isactive')); 
+				echo $cb->render();	
+			
+			  ?></td>
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="Enter your search term here and click search" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="Click here to Search or Filter"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Search</button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("offer_list_norecords"); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("offer_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>  
+  <?php if ($acl->checkPermission('Offer', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <div id="listresults_div">
+    <h2><?php echo $title; ?></h2>
+    <table class="list">
+      <thead>
+        <tr>
+          <?php if ($acl->checkPermission('Offer', ACTION_EDIT)) {?>
+          <td>Edit</td>
+          <?php } ?>
+          <td><?php echo $paginate->getSortLinkForColumn('c.name','Commodity'); ?></td>
+          <td>Type</td>
+          <td>Quantity<br />(Unit)</td>
+          <td>Price<br />(Shs/Unit)</td>          
+          <td><?php echo $paginate->getSortLinkForColumn('o.datecreated','Date Posted'); ?></td>
+          <td><?php echo $paginate->getSortLinkForColumn('o.expirydate','Expiry Date'); ?></td>                    
+          <td><?php echo $paginate->getSortLinkForColumn('l.name','District'); ?></td>
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+            	foreach($result as $line){							
+            ?>
+        <tr>
+          <?php if ($acl->checkPermission('Offer', ACTION_EDIT)) {?>
+          <td>
+          	<?php if(($line['createdby'] == $userid) && (strtotime(changeDateFromPageToMySQLFormat($line['Expiry Date'])) > strtotime(date("Y-m-d")) ) || ($acl->checkPermission('Expired Offer', ACTION_EDIT))){ ?>
+          		<a href="<?php echo $this->baseUrl("offer/index/id/".encode($line['id'])); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>"/></a>
+            <?php } else { ?>
+            	<a href="#" title="Entry is not editable">---</a>
+            <?php } ?>
+          </td>
+            
+          <?php } ?>
+          <td><a class="dialog" title="View all offer details" href="<?php echo $this->baseUrl("offer/view/id/".encode($line['id'])); ?>"><?php echo $line['Commodity']; ?></a></td>
+          <td><?php echo $line['Offer Type']; ?></td>
+          <td><?php echo $line['Quantity']; ?></td>
+          <td><?php echo $line['Price']; ?></td>          
+          <td><?php echo $line['Date Posted']; ?></td>
+          <td><?php echo $line['Expiry Date']; ?></td>         
+          <td><?php echo $line['District']; ?></td>          
+        </tr>
+        <?php 						
+            	} // end processing results 
+            ?>
+      </tbody>
+        </tr>
+      
+    </table>
+  </div>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

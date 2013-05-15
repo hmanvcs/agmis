@@ -1,0 +1,185 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("fishingsector_pagetitle_list");
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("ld.name","l.name","u.firstname","u.lastname"));
+	$paginate->setFilterColumns(array("f.recordedbyid","f.districtid"));
+	$paginate->setDefaultSortBy("f.daterecorded");	
+	$paginate->setDefaultSortOrder("DESC");
+	$paginate->setStartAndEndDateFilterColumn("f.daterecorded"); 
+	
+	$can_viewall_prices = false;
+	$districtquery = '';
+	if ($acl->checkPermission('Fishing Sector Information', ACTION_APPROVE)) { 
+		$can_viewall_prices = true;
+	} 	
+	// custom query for the current district
+	/*if(!isEmptyString($session->getVar("districtid"))){
+		$districtquery = " AND s.locationid = '".$session->getVar("districtid")."' ";
+	}*/
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT f.id AS id, f.recordedbyid as recordedbyid, f.districtid AS districtid,  DATE_FORMAT(f.daterecorded, '".$config->dateandtime->mysqlmediumformat."') as `Date Recorded`, l.name as `District`, ld.name as `Landing Site`, concat(u.firstname,' ',u.lastname) AS `Recorded By` FROM fishcatchsummary AS f Inner Join useraccount AS u ON (f.recordedbyid = u.id) Inner Join landingsite as ld ON (f.landingsiteid = ld.id) Inner Join location as l on (f.districtid = l.id) WHERE f.id <> '' ".$districtquery.$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+	
+	// debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 3;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+	
+?>
+<script>
+$(document).ready(function(){
+	// change the date format since the short format with / corrupts the urls
+	datepickerOpts.dateFormat = '<?php echo $config->dateandtime->javascriptmediumformat; ?>'; 
+	$("#startdate, #enddate").datepicker(datepickerOpts); 
+	$("#assessmentform").validate({
+		errorPlacement: function(error, element) {
+			error.appendTo("#errormessage");
+		},
+		rules: {			
+			enddate: {					
+				enddateafterstartdate: true
+			}				
+		}
+	});
+});
+</script>
+<h2><?php echo $title; ?></h2>
+<form action="<?php echo $this->baseUrl("fishingsector/listsearch"); ?>" method="get" id="assessmentform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td>From:&nbsp;</td>
+            <td><input name="startdate"  id="startdate" type="text" class="datefield startdate autosubmitsearchform" value="<?php echo $request->startdate; ?>" title="Filter Submissions From" /></td>
+            <td>To:&nbsp;</td>
+            <td><input name="enddate" id="enddate" type="text" class="datefield autosubmitsearchform"  value="<?php echo $request->enddate; ?>" title="Filter Submissions To" />
+              &nbsp;&nbsp;<br />
+              <div id="errormessage"></div></td>
+          </tr>          
+          <tr>          	
+            <td colspan="2">
+			<?php //if ($can_viewall_prices) { ?>	
+				<?php
+					$districtlookup = new LookupType;
+					$districtlookup->setName("ALL_DISTRICTS"); 
+					$districtlookup = new Zend_Form_Element_Select('f'.HTML_TABLE_COLUMN_SEPARATOR.'districtid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Districts'), $districtlookup->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array("filterselect", 'chzn-select')
+										)
+									);
+					$districtlookup->setValue($request->getParam('f'.HTML_TABLE_COLUMN_SEPARATOR.'districtid')); 
+					echo $districtlookup->render(); 
+                ?>
+              <?php //} ?>
+              </td>
+              <td colspan="2"><?php					
+					$landingsite = new Zend_Form_Element_Select('f'.HTML_TABLE_COLUMN_SEPARATOR.'landingsiteid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Landing Sites'), getLandingSitesForLocation("")),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array("filterselect", 'chzn-select')											
+										)
+									);
+					$landingsite->setValue($request->getParam('f'.HTML_TABLE_COLUMN_SEPARATOR.'landingsiteid')); 
+					echo $landingsite->render(); 
+                ?></td>              
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="Enter your search term " /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="Click here to Search or Filter"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Search</button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("fishingsector_list_norecords"); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("fishingsector_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>  
+  <div id="listresults_div">
+    <h2><?php echo $this->translate("fishingsector_list_history"); ?></h2>
+    <table class="list">
+
+      <thead>
+        <tr>
+          <?php if ($acl->checkPermission('Fishing Sector Information', ACTION_EDIT)) { ?>
+          <td>Edit</td>
+          <?php } ?>
+          <td>Details</td>
+          <td><?php echo $paginate->getSortLinkForColumn('f.daterecorded','Date Recorded'); ?></td>
+          <?php //if($can_viewall_prices){ ?>
+	          <td width="30%"><?php echo $paginate->getSortLinkForColumn('l.name','District'); ?></td>
+          <?php //} ?>
+          <td><?php echo $paginate->getSortLinkForColumn('ld.name','Landing Site'); ?></td>
+          <td><?php echo $paginate->getSortLinkForColumn('u.firstname','Recorded By'); ?></td>
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+			foreach($result as $line){							
+		?>
+        <tr>
+		  <?php if ($acl->checkPermission('Fishing Sector Information', ACTION_EDIT)) { ?>
+          		<td><a href="<?php echo $this->baseUrl("fishingsector/index/id/".encode($line['id'])); ?>" title="<?php echo $this->translate("fishingsector_pagetitle_editlanding"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>"/></a></td>
+          <?php } ?>
+          <td><a class="dialog" title="<?php echo $this->translate("fishingsector_pagetitle_viewlanding"); ?>" href="<?php echo $this->baseUrl("fishingsector/view/id/".encode($line['id'])); ?>">view</a></td>
+          <td><?php echo $line['Date Recorded']; ?></td>
+          <?php //if($can_viewall_prices){ ?>
+	          <td class="nowrapping"><?php echo $line['District']; ?></td>
+          <?php //} ?> 
+          <td class="nowrapping"><?php echo $line['Landing Site']; ?></td>   
+          <td><?php echo $line['Recorded By']; ?></td>
+        </tr>
+        <?php 						
+			} // end processing results 
+		?>
+      </tbody>
+    </table>
+  </div>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configdata>
+	<dashboard>
+		<label>menu_dashboard</label>
+		<controller>dashboard</controller>
+		<img>images/topmenu_home.png</img>
+		<resource>Dashboard</resource>
+		<privilege>view</privilege>
+	</dashboard>
+	<dataentry>
+		<label>menu_dataentry</label>
+		<controller>dataentry</controller>
+		<img>images/topmenu_dataentry.png</img>
+		<resource>Data Entry</resource>
+		<privilege>view</privilege>
+	</dataentry>
+	<marketprice>
+		<label>menu_marketprice</label>
+		<controller>marketprice</controller>
+		<img>images/topmenu_finance.png</img>
+		<action>list</action>
+		<resource>Market Price</resource>
+		<privilege>list</privilege>
+	</marketprice>
+	<offer>
+		<label>menu_offer</label>
+		<controller>offer</controller>
+		<img>images/topmenu_offers.png</img>
+		<action>list</action>
+		<resource>Offer</resource>
+		<privilege>list</privilege>
+	</offer>
+	<directory>
+		<label>menu_directory</label>
+		<controller>contact</controller>
+		<img>images/topmenu_accounts.png</img>
+		<action>list</action>
+		<resource>Contact</resource>
+		<privilege>list</privilege>
+	</directory>
+	<report>
+		<label>menu_report</label>
+		<controller>report</controller>
+		<img>images/topmenu_report.png</img>
+		<action>overview</action>
+		<resource>Report</resource>
+		<privilege>view</privilege>
+	</report>
+</configdata>

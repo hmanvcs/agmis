@@ -1,0 +1,11 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = $this->translate("price_pagetitle_index"); 
+	$this->headTitle($title); 
+?>
+<h2><?php echo $title; ?></h2>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ldml>
+	<identity>
+		<version number="$Revision: 1.2 $"/>
+		<generation date="$Date: 2011/10/06 12:01:50 $"/>
+		<language type="kpe"/>
+		<territory type="LR"/>
+	</identity>
+</ldml>

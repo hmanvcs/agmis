@@ -1,0 +1,45 @@
+ <?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$logofilename = 'infotradelogo.png';
+	$companyname = 'AGMIS';
+	$typeclass = '';
+	if (isApplicationAGMIS()) {
+		$typeclass = 'agmis';
+	}
+	if (isApplicationLAMIS()) {
+		$logofilename = $session->getVar('logo');
+		$companyname = $session->getVar('organisationname');
+		$typeclass = 'lamis';
+	}
+	if (isApplicationLGMIS()) {		
+		$companyname = $this->translate('lgmis_name'); 
+		$typeclass = 'lgmis';
+		$logofilename = 'coatofarms.jpg';
+	}
+	
+	$logo_path = $this->baseUrl('uploads/lamis/logos/'.$logofilename);
+	if (isApplicationLGMIS()) {
+		$logo_path = $this->baseUrl('images/'.$logofilename);
+	}
+?>
+ <div id="header" class="<?php echo $typeclass; ?>">
+    <div id="logo">
+    		
+       		<img src="<?php echo $logo_path; ?>" alt="Home" />&nbsp;    
+       <span class="logotext"><?php echo $companyname; ?></span> 
+    </div>
+    <?php if (!isEmptyString($session->getVar('userid'))) { ?>
+    <div id="headerright">
+      <ul id="toplinks">
+        <li><span class="toplinkspacer">|</span><a href="<?php echo $this->baseUrl("user/logout"); ?>" title="Logout">Logout</a></li>
+        <li><a href="<?php echo $this->baseUrl("profile/view/id/".encode($userid)); ?>" title="My Profile"><?php echo $session->getVar('firstname')." ".$session->getVar('lastname'); ?></a></li>        
+        <?php echo $session->getVar("settingslink"); ?>       
+      </ul>
+      <div id="search"><input type="text" name="search" id="search" /></div>
+    </div>
+    <?php } ?>
+  </div>
+  <?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

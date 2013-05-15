@@ -1,0 +1,268 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$livestockector = new LivestockProduction();
+	if (isApplicationLGMIS()) {
+		$livestockector->setLocationID($session->getVar('districtid')); 
+	}
+	$posturl = $this->baseUrl("livestocksector/create");
+	$title = $this->translate("livestocksector_input_pagetitle_new"); 
+	$button_title_save = $this->translate("livestocksector_button_new"); 
+	
+	# Fetch Existing Price Details for the current submission.
+	# If updating, fetch all records for the passed quarter
+	if($request->quarter){
+		$quarter_dates = getDatesForQuarter($request->quarter);
+		$startdate = changeDateFromPageToMySQLFormat($quarter_dates['startdate']);
+		$enddate = changeDateFromPageToMySQLFormat($quarter_dates['enddate']);
+	}else{
+		$startdate = "";
+		$enddate = "";
+	}
+		$query = "SELECT cd.id AS `Commodity ID`,  ls.id AS `livestocksectorid`, cd.`name` AS `Commodity`, ls.collectedbyid AS `Collector`, ls.datecollected AS `Date Collected`, ls.startdate AS `Start Date`, l.`id` AS `Location`, ls.breedcost AS `Cost of Breeds`, ls.yield AS `Yield` FROM commodity AS cd 
+		Inner Join commoditypricecategory AS cp ON (cd.id = cp.commodityid)
+LEFT JOIN livestockproduction ls ON(ls.commodityid = cd.id AND ls.startdate = '".$startdate."' AND ls.enddate = '".$enddate."')
+LEFT JOIN location l ON (ls.locationid = l.id AND l.id = '".$livestockector->getLocationID()."') WHERE cp.pricecategoryid= '8' ORDER BY cd.`name`";
+		
+	//check if user is updating the information
+$queryforupdatecheck = "SELECT  breedcost, yield FROM  livestockproduction WHERE (startdate = '".$startdate."' AND enddate = '".$enddate."')";	
+	
+	$conn = Doctrine_Manager::connection();  
+	$livestock = $conn->fetchAll($query);
+	
+	//check if user is updating the information i.e if number of results is greater than zero
+	$checkifupdate = $conn->fetchAll($queryforupdatecheck);
+	if(count($checkifupdate) > 0){
+		$button_title_save = $this->translate("livestocksector_button_update");
+	}
+	//set the page title
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		
+		datepickerOpts.maxDate = new Date();   
+		$("#datecollected").datepicker(datepickerOpts); 
+
+		$("#livestocksectorform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				datecollected: "required",
+				collectedbyid: "required",
+				comments: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				datecollected: "<?php echo $this->translate("livestocksector_datecollected_error"); ?>",
+				collectedbyid: "<?php echo $this->translate("livestocksector_collectedby_error"); ?>",
+				comments: "<?php echo $this->translate("livestocksector_comments_error"); ?>"				
+			}
+		});
+			
+		// Copy buttons at the top to the bottom
+		$("td.bottombuttons").html($("td.topbuttons").html());
+		
+		// reload the page to the fetch data, if any, for the new selected quarter  
+		$("#quarter").change(function(){
+			var selectedquarter =  $("#quarter").val();
+			// set the default dialog options
+			
+			$("#confirmdialog").dialog(dialogOpts);
+			// add the dialog buttons 
+			$("#confirmdialog").dialog('option', 'buttons', {
+				 " Yes " : function() {
+					  				$(window.location).attr('href', "<?php echo $this->baseUrl('livestocksector/index/quarter/'); ?>" + selectedquarter);
+					  },
+				 "Cancel" : function() {
+					 			
+								  //close the dialog, entered data will not be affected
+								  $(this).dialog("close");
+					  }
+			});
+			// open the dialog 
+			$('#confirmdialog').dialog('open').height('auto');
+		});
+	}); 
+	
+	// check that price is a valid number
+	function IsValidAmount(value){
+		var ValidChars = "0123456789";
+		var valid=true;
+		var Char;
+		
+		for (i = 0; i < value.length && valid == true; i++){ 
+			Char = value.charAt(i); 
+			if (ValidChars.indexOf(Char) == -1) {
+				valid = false;
+			}
+		}
+		return valid;
+	}
+</script>
+<style>
+
+input.numberfield {
+	width: 318px; 
+} 
+#rightcolumn {
+	display: none; 
+} 
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.formtable {
+	width: 100%; 
+} 
+table.formtable tr.sectionheading {
+	background-repeat:repeat; 
+} 
+</style>
+<div id="confirmdialog" class="hidden" title="Confirm change of Quarter">You have changed the quarter, please note that the page will now be reloaded, you will lose any data that you may have entered.</div>
+<div class="pageinfo"><?php echo $this->translate("livestocksector_input_create_info"); ?></div>
+<form id="livestocksectorform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td class="topbuttons"><a href="<?php echo $this->baseUrl("dashboard"); ?>" title="<?php echo $button_title_save; ?>">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction save" name="save"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title_save; ?></button></td>
+      </tr>
+    </tfoot>
+  </table>
+  <br />
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("livestocksector_datecollected_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td>
+      
+      <input type="text" name="datecollected" id="datecollected" class="datefield" value="<?php echo changeMySQLDateToPageFormat($livestock[0]['Date Collected']);?>" /></td>
+    </tr>
+    <?php if (!isApplicationLGMIS()) {
+    		// hide the districtt for LGMIS users
+    ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("livestocksector_input_location_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+       <td><?php
+      	$districtlist = new LookupType(); 
+      	$districtlist->setName("ALL_DISTRICTS");
+       	$districtdropdown = new Zend_Form_Element_Select('locationid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+		$districtdropdown->setValue($livestock[0]['Location']); 
+		echo $districtdropdown->render(); 
+      ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("livestocksector_collectedby_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+      	$lgmisuser = new LookupType(); 
+      	$lgmisuser->setName("ALL_LGMIS_USERS");
+       	$lgmisuserdropdown = new Zend_Form_Element_Select('collectedbyid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $lgmisuser->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select', "{required:true, messages: {required: '".$this->translate("livestocksector_collector_error")."'}}"),
+							)
+						);
+		$lgmisuserdropdown->setValue($livestock[0]['Collector']); 
+		echo $lgmisuserdropdown->render(); 
+      ?>
+        </td>
+    </tr>
+    <?php } ?>
+    
+    
+     <tr>
+      <td class="label"><?php echo $this->translate("livestocksector_quarter_label"); ?>:<?php echo $this->translate("required_field_marker"); ?>
+      </td>
+      <td>
+      	<?php
+      	
+       	$quarterdropdown = new Zend_Form_Element_Select('quarter',
+							array(
+								'multiOptions' => getYearQuartersList(),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+					
+		$quarterdropdown->setValue(getQuarterFromDate($startdate)); 
+		echo $quarterdropdown->render(); 
+      ?>
+   
+      </td>
+    </tr>
+  </table>
+  <br />
+  <table class="formtable commodities">
+    <thead>
+      <tr class="sectionheading">
+        <td align="left" style="width:200px;"><?php echo $this->translate("livestocksector_commodity_label"); ?></td>
+        <td align="center"><?php echo $this->translate("livestocksector_breedcost_label"); ?></td>
+        <td align="center"><?php echo $this->translate("livestocksector_yield_label"); ?></td>
+      </tr>
+    </thead>
+    <?php
+	   
+		$i = 0;		
+		foreach($livestock as $stock){
+			// if action is create, blank out any prices preset from previous submission			
+  	?>
+    <tr>
+      <td align="left" class="label nowrapping">
+	  <?php echo $stock['Commodity']; ?>
+        <input type="hidden" name="commodityid[]" value="<?php echo $stock['Commodity ID']; ?>" />
+        </td>
+     
+      <td align="center"><input name="breedcost[]" class="{number:true, messages: {number: '<?php echo $this->translate("livestocksector_numberfield_error"); ?>'}} numberfield" type="text" value="<?php echo $stock['Cost of Breeds']; ?>" /></td>
+      <td align="center"><input type="text" class="{number:true, messages: {number: '<?php echo $this->translate("livestocksector_numberfield_error"); ?>'}} numberfield" name="yield[]" value="<?php echo $stock['Yield']; ?>" />
+       <input type="hidden" name="id[]" value="<?php echo $stock['livestocksectorid']; ?>" /></td>
+      
+    </tr>
+    <?php $i++;
+		}	
+	?>
+    <?php if (isApplicationLGMIS()) { ?>
+         	 <input type="hidden" id="locationid" name="locationid" value="<?php echo $livestockector->getLocationID(); ?>" />
+             <input type="hidden" name="collectedbyid" id="collectedbyid" value="<?php echo $userid;  ?>" />
+             
+           <?php } ?>
+           
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td class="bottombuttons"></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

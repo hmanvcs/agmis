@@ -1,0 +1,378 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = $this->translate("report_average_price_detail_pagetitle");
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array());	
+	$paginate->setFilterColumns(array("c.commodityid","l.regionid"));			
+	
+	$duration = "";
+	if (!isEmptyString($request->generate)) {
+		$startmonth = $request->c__f_collectionmonth;
+		$startyear = $request->c__f_collectionyear;
+		$endmonth = $request->c__t_collectionmonth;
+		$endyear = $request->c__t_collectionyear;
+		
+		$from = getFirstDayOfMonth($startmonth, $startyear);
+		$to  = getLastDayOfMonth($endmonth, $endyear);
+		
+		$start_string = getMonthName($startmonth)." ".$startyear;
+		$end_string = getMonthName($endmonth)." ".$endyear;
+
+		$duration = " AND (TO_DAYS(cps.datecollected) BETWEEN TO_DAYS('".$from."') AND TO_DAYS('".$to."')) ";
+	}
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT 
+						c.commodityid as commodityid,
+						cps.sourceid AS marketid,
+						co.name as market,
+						ROUND(AVG(c.retailprice)) AS averageretail,
+						ROUND(AVG(c.wholesaleprice)) AS averagewholesale,
+						MIN(c.retailprice) AS minretail,
+						MIN(c.wholesaleprice) AS minwholesale,
+						MAX(c.retailprice) AS maxretail,
+						MAX(c.wholesaleprice) AS maxwholesale,
+						ROUND(STDDEV(c.retailprice)) AS stdretail,
+						ROUND(STDDEV(c.wholesaleprice)) AS stdwholesale
+						FROM commoditypricedetails c 
+						INNER JOIN commoditypricesubmission cps ON c.submissionid = cps.id 
+						INNER JOIN pricesource co ON cps.sourceid = co.id
+						INNER JOIN location l ON co.locationid = l.id
+						WHERE cps.`status` = 'Approved' AND c.pricecategoryid = 2 AND (c.retailprice <> 0 AND c.wholesaleprice <> 0) ".$paginate->getSearchAndFilterSQL(). $duration. " group by marketid";
+								
+	# debugMessage($all_results_query);
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $all_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	
+	$marketsource= new LookupType(); 
+	$marketsource->setName("ALL_MARKET_SOURCES");
+	$allmarkets = $marketsource->getOptionValuesFromQuery();	
+	
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 960px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+#listresults_div {
+	float: left;
+	width: 100%;
+	overflow:scroll;
+}
+#listresults_div h2 {
+	background: url("../images/report_header_bg.png");
+	background-repeat:repeat-x;
+	width:100%
+}
+table.list {
+	width:950px;	
+}
+table.list tbody tr td {
+	border:solid 1px #CCCCCC;	
+}
+label.error {
+	display:block;
+}
+</style>
+<script>
+$(document).ready(function(){
+	// change the date format since the short format with / corrupts the urls
+	datepickerOpts.dateFormat = '<?php echo $config->dateandtime->javascriptmediumformat; ?>'; 
+	$("#startdate, #enddate").datepicker(datepickerOpts); 
+	$("#pricereport").validate({
+		errorPlacement: function(error, element) {
+			if(element.attr("name") == "<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionmonth'; ?>"){
+				error.appendTo("#fromerror");
+			}
+			if(element.attr("name") == "<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionyear'; ?>"){
+				error.appendTo("#fromerror");
+			}
+			if(element.attr("name") == "<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionmonth'; ?>" ){
+				error.appendTo("#toerror");
+			}
+			if(element.attr("name") == "<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionyear'; ?>" ){
+				error.appendTo("#toerror");
+			}
+			if(element.attr("name") == "<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid';?>" ){
+				error.appendTo("#commodityerror");
+			}
+			if(element.attr("name") == "pricetype" ){
+				error.appendTo("#pricetypeerror");
+			}
+			
+		},	
+		rules: {
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionmonth'; ?>: "required",		
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionyear'; ?>: "required",
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionmonth'; ?>: "required",
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionyear'; ?>: "required",		
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid';?>: "required",
+			pricetype: "required"				
+		}, 
+		// the messages for each of the fields being validated
+		messages: {	
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionmonth'; ?>: "Select Start Month",		
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionyear'; ?>: "Select Start Year",
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionmonth'; ?>: "Select End Month",
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionyear'; ?>: "Select End Year",			
+			<?php echo 'c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid';?>: "Select a commodity",
+			pricetype: "Select a Price Type"	
+		}
+	});	
+	
+	// check all choice options when page loads
+	$('#choiceoptions-0').click();
+	// trigger to check or uncheck all checkboxes
+	$('#choiceoptions-0').click(function () {
+		var checked_status = this.checked;
+		// alert("status is "+checked_status);
+		$(".checkbox").each(function(){
+			this.click();
+			this.checked = checked_status;
+		});
+	});
+});
+</script>
+<?php if(isEmptyString($request->excel)) {	?>
+	<h2><?php echo $title; ?></h2>
+<?php } else { ?>
+	<?php 
+		$commodity = new Commodity();
+	  	$commodity->populate($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')); 	  	
+		if($start_string == $end_string){
+			$excltitle = " Aggregate Prices Report for ".$commodity->getName()." - (".$start_string.")"; 
+		} else {
+			$excltitle = " Aggregate Prices Report for ".$commodity->getName()." - (".$start_string." - ".$end_string.")"; 
+		}
+	?>
+	<h2><?php echo $excltitle; ?></h2>
+<?php } ?>
+<form action="<?php echo $this->baseUrl("report/aggregatedpricedetail"); ?>" method="get" id="pricereport">
+<?php if(isEmptyString($request->excel)) {	?>
+  <table class="reportfiltercontainer">
+    <tr>
+      <td><table class="reportfiltersection">
+          <tr>
+            <td class="label">From:<span class="requiredmark">*</span></td>
+            <td><?php			      
+			       	$yeardropdown = new Zend_Form_Element_Select('c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionyear',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'Select Year'), getAllYears()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+										)
+									);
+					$yeardropdown->setValue(array($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionyear'))); 
+					echo $yeardropdown->render(); 
+			?>
+              <br />
+              <?php			      
+			       	$monthdropdown = new Zend_Form_Element_Select('c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionmonth',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'Select Month'), getAllMonthsAsNumbers()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+										)
+									);
+					$monthdropdown->setValue(array($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'f_collectionmonth'))); 
+					echo $monthdropdown->render(); 
+			?></td>
+            <td class="label">To:<span class="requiredmark">*</span></td>
+            <td><?php			      
+			       	$yeardropdown = new Zend_Form_Element_Select('c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionyear',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'Select Year'), getAllYears()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+										)
+									);
+					$yeardropdown->setValue(array($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionyear'))); 
+					echo $yeardropdown->render(); 
+			?>
+              <br />
+              <?php			      
+			       	$monthdropdown = new Zend_Form_Element_Select('c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionmonth',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'Select Month'), getAllMonthsAsNumbers()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+										)
+									);
+					$monthdropdown->setValue(array($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'t_collectionmonth'))); 
+					echo $monthdropdown->render(); 
+			?></td>
+            <td><?php
+			      	$commoditylist = new LookupType(); 
+			      	$commoditylist->setName("ALL_COMMODITIES");
+			       	$commoditydropdown = new Zend_Form_Element_Select('c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Commodities'), $commoditylist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+										)
+									);
+					$commoditydropdown->setValue(array($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid'))); 
+					echo $commoditydropdown->render(); 
+			?><br/>
+            <?php
+					$regionlist = new LookupType(); 
+					$regionlist->setName("ALL_REGIONS");
+					$regiondropdown = new Zend_Form_Element_Select('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Regions'), $regionlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('autosubmitsearchform','filterselect', 'chzn-select'),
+											'title' => 'Filter Users By Region'
+										)
+									);
+					$regiondropdown->setValue($request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid')); 
+					echo $regiondropdown->render(); 
+			?></td>
+          </tr>
+          <tr>
+            <td></td>
+            <td><div id="fromerror"></div></td>
+            <td></td>
+            <td><div id="toerror"></div></td>
+            <td><div id="commodityerror"></div></td>
+          </tr>
+        </table></td>
+      <td align="left"><table>
+          <tr>
+            <td><button type="submit" class="positiveaction" title="Click here to Generate Report"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Generate Report</button>
+              <input type="hidden" name="generate" value="true" /></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php } ?>
+</form>
+<?php if (!isEmptyString($request->generate)) { ?>
+<?php
+	  	// execute the query and generate data only after the report options have been selected
+		$result = $conn->fetchAll($all_results_query);
+	
+		$has_no_data = (count($result) == 0) ? true : false; 
+		
+		# This variable stores the number of redundant columns returned in the query so that when we are printing
+		# we are able to know how many columns to ignore. This variable is sent in the print URL
+		$number_of_redundant_columns = 3;
+		
+		# the columns which contain numbers in the invoice query
+		# Please note that the column count begins at 0
+		$export_number_column_list = "";
+
+		// show a message that there are no items to display
+		if ($has_no_data) {
+			$this->headTitle("No Data for Price Comparison Report"); 
+	?>
+<div class="norecords">
+  <label class="error"><?php echo $this->translate("report_global_norecords_label"); ?></label>
+</div>
+<?php } else { 
+	  	$commodity = new Commodity();
+	  	$commodity->populate($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')); 
+	  	
+	  	$title = " Aggregate Prices Report for '".$commodity->getName()."' from ".$start_string." to ".$end_string; 
+	?>
+<?php if(isEmptyString($request->excel)) {	?>      
+      <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->url(array_merge_maintain_keys(array(PAGE_CONTENTS_ONLY => 'true', EXPORT_TO_EXCEL => 'true'), $request->getQuery())); ?>"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+<div id="listresults_div">
+  <?php if(isEmptyString($request->excel)) {	?>
+  	<h2><?php echo $title; ?></h2>
+  <?php } ?>
+  <table class="list">
+    <thead>
+      <tr>        
+        <td>&nbsp;</td>        
+        <td style="vertical-align:middle; text-align:center" colspan="2">Min Price(Shs)</td>
+        <td style="vertical-align:middle; text-align:center" colspan="2">Max Price(Shs)</td>
+        <td style="vertical-align:middle; text-align:center" colspan="2">Average(Shs)</td>
+        <td style="vertical-align:middle; text-align:center" colspan="2">Standard Deviation</td>
+      </tr>
+      <tr>        
+        <td>Market</td>        
+        <td style="vertical-align:middle; text-align:center">Wholesale</td>
+        <td style="vertical-align:middle; text-align:center">Retail </td>
+        <td style="vertical-align:middle; text-align:center">Wholesale</td>
+        <td style="vertical-align:middle; text-align:center">Retail </td>
+        <td style="vertical-align:middle; text-align:center">Wholesale</td>
+        <td style="vertical-align:middle; text-align:center">Retail </td>
+        <td style="vertical-align:middle; text-align:center">Wholesale</td>
+        <td style="vertical-align:middle; text-align:center">Retail </td>       
+      </tr>
+    </thead>
+    <tbody>
+      <?php 
+	  		$minwholesale_over = 0;
+			$minretail_over = 0;
+			$maxwholesale_over = 0;
+			$maxretail_over = 0;
+			$averagewholesale_over = 0;
+			$averagewholesalee_over = 0;
+			$stdwholesale_over = 0;
+			$stdretail_over = 0;
+			$counter = 0;
+			foreach($result as $line){
+				$minwholesale_over += $line['minwholesale'];
+				$minretail_over += $line['minretail'];
+				$maxwholesale_over += $line['maxwholesale'];
+				$maxretail_over += $line['maxretail'];
+				$averagewholesale_over += $line['averagewholesale'];
+				$averagewholesalee_over += $line['averageretail'];
+				$stdwholesale_over += $line['stdwholesale'];
+				$stdretail_over += $line['stdretail'];
+				
+		?>
+	  <tr>
+		 <td class="nowrapping" width="130"><?php echo $line['market']; ?></td>  
+         <td style="padding-right:10px; text-align:right"><?php echo formatNumber($line['minwholesale']); ?></td>  
+         <td style="padding-right:10px; text-align:right"><?php echo formatNumber($line['minretail']); ?></td>  
+		 <td style="padding-right:10px; text-align:right"><?php echo formatNumber($line['maxwholesale']); ?></td>		 
+         <td style="padding-right:10px; text-align:right"><?php echo formatNumber($line['maxretail']); ?></td>
+         <td style="padding-right:10px; text-align:right"><?php echo formatNumber($line['averagewholesale']); ?></td>  
+         <td style="padding-right:10px; text-align:right"><?php echo formatNumber($line['averageretail']); ?></td>		 
+         <td style="padding-right:10px; text-align:right"><?php echo formatNumber($line['stdwholesale']); ?></td>  
+         <td style="padding-right:10px; text-align:right"><?php echo formatNumber($line['stdretail']); ?></td>		 
+	  </tr>
+	  <?php $counter++;
+		} // end processing results 
+		?>
+        <tr>
+       	 <td class="nowrapping" width="130"><b>Overall Average</b></td>
+         <td style="padding-right:10px; text-align:right"><b><?php echo formatNumber($minwholesale_over/$counter); ?></b></td>  
+         <td style="padding-right:10px; text-align:right"><b><?php echo formatNumber($minretail_over/$counter); ?></b></td>  
+         <td style="padding-right:10px; text-align:right"><b><?php echo formatNumber($maxwholesale_over/$counter); ?></b></td>  
+         <td style="padding-right:10px; text-align:right"><b><?php echo formatNumber($maxretail_over/$counter); ?></b></td>  
+         <td style="padding-right:10px; text-align:right"><b><?php echo formatNumber($averagewholesale_over/$counter); ?></b></td>  
+         <td style="padding-right:10px; text-align:right"><b><?php echo formatNumber($averagewholesalee_over/$counter); ?></b></td>  
+         <td style="padding-right:10px; text-align:right"><b><?php echo formatNumber($stdwholesale_over/$counter); ?></b></td>  
+         <td style="padding-right:10px; text-align:right"><b><?php echo formatNumber($stdretail_over/$counter); ?></b></td>  
+        </tr>
+    </tbody>
+  </table>
+</div>
+<?php			
+		} // end check that there are results    	
+	?>
+<?php } // end check that the report generate request has been sent ?>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

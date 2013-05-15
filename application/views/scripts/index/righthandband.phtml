@@ -1,0 +1,206 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$marketid = $session->getVar("marketid");
+?>
+<div id="rightcolumn">
+  <dl class="dropdown">
+    <dt><a href="javascript: doNothing();"></a></dt>
+    <dd>
+      <ul>
+       	<?php if ($acl->checkPermission('Market Price', ACTION_APPROVE)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("marketprice/list"); ?>" title="View Market Prices"><img src="<?php echo $this->baseUrl('images/topmenu_offers.png'); ?>" />Market Prices</a></li>
+        <?php } else { ?>
+        	<?php if ($acl->checkPermission('Market Price', ACTION_LIST)) { ?>
+				<?php if(isApplicationLAMIS()){ ?>
+                    <li><a href="<?php echo $this->baseUrl("marketprice/list"); ?>" title="View Market Prices"><img src="<?php echo $this->baseUrl('images/topmenu_offers.png'); ?>" />Market Prices</a></li>
+                <?php } else { ?>
+                    <li><a href="<?php echo $this->baseUrl("marketprice/list/ps".HTML_TABLE_COLUMN_SEPARATOR."sourceid/".$marketid); ?>" title="View Market Prices"><img src="<?php echo $this->baseUrl('images/topmenu_offers.png'); ?>" />Market Prices</a></li>
+                <?php } ?>
+            <?php } ?>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Organic Price', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("organicprice/list"); ?>" title="View Fuel Prices"><img src="<?php echo $this->baseUrl('images/topmenu_offers.png'); ?>" />Organic Prices</a></li>
+        <?php } ?>
+		<?php if ($acl->checkPermission('Fuel Price', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("fuelprice/list"); ?>" title="View Fuel Prices"><img src="<?php echo $this->baseUrl('images/topmenu_offers.png'); ?>" />Fuel Prices</a></li>
+        <?php } ?>         	
+        <?php if ($acl->checkPermission('Retail Price', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("retailprice/list"); ?>" title="View Retail Prices"><img src="<?php echo $this->baseUrl('images/topmenu_offers.png'); ?>" />Retail Prices</a></li>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Input Price', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("inputprice/list"); ?>" title="View Input Prices"><img src="<?php echo $this->baseUrl('images/topmenu_offers.png'); ?>" />Input Prices</a></li>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Offer', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("offer/list"); ?>" title="View Offers"><img src="<?php echo $this->baseUrl('images/listitem_commoditytype.png'); ?>" alt="" />Offers</a></li>
+        <?php } ?>
+         <?php if ($acl->checkPermission('Contact', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("contact/list"); ?>" title="View Business Directory"><img src="<?php echo $this->baseUrl('images/contacts.png'); ?>" alt="" />Contacts</a></li>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Business Directory Category', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("businessdirectorycategory/list")?>"><img src="<?php echo $this->baseUrl('images/listitem_bizcategory.png'); ?>" />Contact Categories</a></li>
+        <?php } ?>            
+        <?php if ($acl->checkPermission('Commodity', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("commodity/list")?>" title="View Commodities"><img src="<?php echo $this->baseUrl('images/listitem_commodity.png'); ?>" />Commodities</a></li>          
+        <?php } ?>
+        <?php if ($acl->checkPermission('Commodity Category', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("commoditycategory/list")?>" title="View Commodity Categories"><img src="<?php echo $this->baseUrl('images/listitem_commoditytype.png'); ?>" />Commodity Categories</a></li>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Commodity Unit', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("commodityunit/list")?>" title="View Commodity Units"><img src="<?php echo $this->baseUrl('images/listitem_commoditytype.png'); ?>" />Commodity Units</a></li>         
+        <?php } ?>
+        <?php if ($acl->checkPermission('Price Category', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("pricecategory/list")?>" title="View Price Categories"><img src="<?php echo $this->baseUrl('images/listitem_commoditytype.png'); ?>" />Price Categories</a></li>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Price Source', ACTION_LIST)) { ?>
+        	<li><a href="<?php echo $this->baseUrl("pricesource/list")?>" title="View Price Sources"><img src="<?php echo $this->baseUrl('images/listitem_commoditytype.png'); ?>" />Price Sources</a></li>
+        <?php } ?>      
+        <?php if ($acl->checkPermission('Location Statistic', ACTION_LIST)) { ?>
+            	<li>
+                	<a class="list" href="<?php echo $this->baseUrl("locationstatistic/list")?>" title="District Statistics"><img src="<?php echo $this->baseUrl('images/listitem_bizcategory.png'); ?>" />District Statistics</a>
+                </li>
+            <?php } ?>   
+        <?php if ($acl->checkPermission('Agricultural Chemical', ACTION_LIST)) { ?>
+                <li>
+                    <a class="list" href="<?php echo $this->baseUrl("agriculturalchemical/list"); ?>" title="Agricultural Input Prices"><img src="<?php echo $this->baseUrl('images/topmenu_market.png'); ?>" />Agricultural Input Prices</a>
+                </li>       
+            <?php } ?> 
+           <?php if ($acl->checkPermission('Crop Production Information', ACTION_LIST)) { ?>
+                <li>
+                    <a class="list" href="<?php echo $this->baseUrl("cropsector/list"); ?>" title="Crop Production"><img src="<?php echo $this->baseUrl('images/listitem_bizcategory.png'); ?>" />Crop Production Info</a>
+                </li>       
+            <?php } ?>
+          <?php if ($acl->checkPermission('Fishing Sector Information', ACTION_LIST)) { ?>
+                <li>
+                    <a class="list" href="<?php echo $this->baseUrl("fishingsector/list"); ?>" title="Fishing Sector Information"><img src="<?php echo $this->baseUrl('images/listitem_bizcategory.png'); ?>" />Fishing Sector Info</a>
+                </li>       
+            <?php } ?>
+           <?php if ($acl->checkPermission('Handcraft Sector Information', ACTION_LIST)) { ?>
+                <li>
+                    <a class="list" href="<?php echo $this->baseUrl("handcraftsector/list"); ?>" title="Handcraft Sector Information"><img src="<?php echo $this->baseUrl('images/listitem_bizcategory.png'); ?>" />Handcraft Sector Info</a>
+                </li>       
+            <?php } ?>
+            <?php if ($acl->checkPermission('Livestock Production', ACTION_LIST)) { ?>
+                <li>
+                    <a class="list" href="<?php echo $this->baseUrl("livestocksector/list"); ?>" title="Livestock Sector Information"><img src="<?php echo $this->baseUrl('images/listitem_bizcategory.png'); ?>" />Livestock Sector Info</a>
+                </li>       
+            <?php } ?>
+            <?php if ($acl->checkPermission('Tourist Attraction', ACTION_LIST)) { ?>
+                <li>
+                    <a class="list" href="<?php echo $this->baseUrl("touristattraction/list"); ?>" title="Tourist Attractions"><img src="<?php echo $this->baseUrl('images/listitem_bizcategory.png'); ?>" />Tourist Attractions</a>
+                </li>       
+            <?php } ?>
+            <?php if ($acl->checkPermission('District Business Directory', ACTION_LIST)) { ?>
+                <li>
+                    <a class="list" href="<?php echo $this->baseUrl("businesssector/list"); ?>" title="District Business Directory"><img src="<?php echo $this->baseUrl('images/listitem_bizcategory.png'); ?>" />Business Registration</a>
+                </li>       
+            <?php } ?>
+      </ul>
+    </dd>
+  </dl>
+  <div id="actions"><img src="<?php echo $this->baseUrl('images/quick_links.gif'); ?>" alt="" />Quick Actions</div>
+  <ul id="quicklinks">
+  	<?php if ($acl->checkPermission ("Market Price", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("marketprice"); ?>" title="Submit Market Prices"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Market Prices</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Organic Price", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("organicprice"); ?>" title="Submit Organic Prices"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Organic Prices</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Fuel Price", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("fuelprice"); ?>" title="Submit Fuel Prices"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Fuel Prices</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Retail Price", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("retailprice"); ?>" title="Submit Retail Prices"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Retail Prices</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Input Price", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("inputprice"); ?>" title="Submit Input Prices"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Input Prices</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Offer", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("offer"); ?>" title="Add New Offer"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Offer</a></li>
+    <?php } ?>    
+    <?php if ($acl->checkPermission("Contact", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("contact"); ?>" title="Add New Contact to Business Directory"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Contact</a></li>
+    <?php } ?>
+	<?php if ($acl->checkPermission ("Business Directory Category", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("businessdirectorycategory"); ?>" title="Add New Business Directory Category"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Contact Category</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission("Commodity", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("commodity"); ?>" title="Add New Commodity"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Commodity</a></li>
+    <?php } ?>    
+    <?php if ($acl->checkPermission ("Commodity Category", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("commoditycategory"); ?>" title="Add New Commodity Category"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Commodity Category</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Commodity Unit", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("commodityunit"); ?>" title="Add New Commodity Unit"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Commodity Unit</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Price Category", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("pricecategory"); ?>" title="Add New Price Category"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Price Category</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission('Price Source', ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("pricesource"); ?>" title="New Price Source"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Price Source</a></li>
+    <?php } ?>   
+    
+    <?php if ($acl->checkPermission('User Account', ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("profile"); ?>" title="New User Account"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New User Account</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission('Role', ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("role"); ?>" title="New Role"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Role</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission("Region", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl("region"); ?>" title="Add New Region"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Region</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("District", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("district"); ?>" title="Add New District"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New District</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("County", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("county"); ?>" title="Add New County"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New County</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Subcounty", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("subcounty"); ?>" title="Add New Sub-County"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Sub-County</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Parish", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("parish"); ?>" title="Add New Parish"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Parish</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission ("Village", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("village"); ?>" title="Add New Village"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Village</a></li>
+    <?php } ?> 
+    <?php if ($acl->checkPermission ("Organisation", ACTION_CREATE)) { ?>
+    	<li><a href="<?php echo $this->baseUrl ("organisation"); ?>" title="Add New Organisation"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Organisation</a></li>
+    <?php } ?>      
+    <?php if ($acl->checkPermission("Location Statistic", ACTION_CREATE)) { ?>
+     	 <li><a href="<?php echo $this->baseUrl("locationstatistic/multiple"); ?>" title="New Location Statistics"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Location Statistics</a></li>
+    <?php } ?>
+    <?php if ($acl->checkPermission("Agricultural Chemical", ACTION_CREATE)) { ?>
+          <li><a href="<?php echo $this->baseUrl("agriculturalchemical"); ?>" title="Submit Agricultural Input Prices"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Agricultural Input Prices</a></li>
+    <?php } ?>
+    
+    <?php if ($acl->checkPermission("Location Details", ACTION_CREATE)) { ?>
+          <li><a href="<?php echo $this->baseUrl("locationdetail"); ?>" title="Submit Location Details"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New District Details</a></li>
+    <?php } ?>
+    
+   	<?php if ($acl->checkPermission("Crop Production Information", ACTION_CREATE)) { ?>
+          <li><a href="<?php echo $this->baseUrl("cropsector/cropsectorinfo"); ?>" title="Add District Crop Sector Info"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Add District Crop Sector Info</a></li>
+          <li><a href="<?php echo $this->baseUrl("cropsector"); ?>" title="Submit Crop Production"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;New Crop Production Info</a></li>
+     <?php } ?>
+     <?php if ($acl->checkPermission("Fishing Sector Information", ACTION_CREATE)) { ?>
+           <li>&nbsp;<a href="<?php echo $this->baseUrl("fishingsector"); ?>" title="Submit Fishing Sector Info"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Fishing Sector Info</a></li>
+     <?php } ?>
+     <?php if ($acl->checkPermission("Handcraft Sector Information", ACTION_CREATE)) { ?>
+           <li><a href="<?php echo $this->baseUrl("handcraftsector"); ?>" title="Submit Handcraft Sector Info"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Handcraft Sector Info</a></li>
+           <li><a href="<?php echo $this->baseUrl("handcraftsector/handcraftsectorinfo"); ?>" title="Add District Handcraft Sector Info"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Add District Handcraft Sector Info</a></li>
+      <?php } ?>
+      <?php if ($acl->checkPermission("Livestock Production", ACTION_CREATE)) { ?>
+      <li><a href="<?php echo $this->baseUrl("livestocksector/livestockinfo"); ?>" title="Add District Livestock Sector Info"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Add District Livestock Sector Info</a></li>
+            <li><a href="<?php echo $this->baseUrl("livestocksector"); ?>" title="Submit Livestock Sector Info"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Livestock Production Info</a></li>
+      <?php } ?>
+      <?php if ($acl->checkPermission("Tourist Attraction", ACTION_CREATE)) { ?>
+      		<li><a href="<?php echo $this->baseUrl("touristattraction"); ?>" title="Submit Tourist Attraction"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Submit Tourist Attraction</a></li>
+      <?php } ?>
+      <?php if ($acl->checkPermission("District Business Directory", ACTION_CREATE)) { ?>
+       	   <li><a href="<?php echo $this->baseUrl("businesssector"); ?>" title="Register New Business"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" />&nbsp;Register New Business</a></li>
+      <?php } ?>
+  </ul>
+</div>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

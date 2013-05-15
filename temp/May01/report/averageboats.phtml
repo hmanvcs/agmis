@@ -1,0 +1,316 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("report_average_boats_pagetitle");
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setFilterColumns(array("fs.landingsiteid", "fs.districtid"));	
+	$paginate->setDefaultSortBy("fs.daterecorded");	
+	$paginate->setDefaultSortOrder("DESC");
+	$paginate->setStartAndEndDateFilterColumn("fs.daterecorded"); 
+	$paginate->setItemCountPerPage("ALL");
+	
+	$startdate = $request->startdate;
+	$enddate = $request->enddate;
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = 
+			"SELECT
+			fd.id AS id,
+			DATE_FORMAT(fs.daterecorded, '".$config->dateandtime->mysqlmediumformat."') as `Date Recorded`,
+			SUM(IF(fd.nettype = 'GN', 1 , 0)) AS `GN`,
+			SUM(IF(fd.nettype = 'MF', 1 , 0)) AS `MF`,
+			SUM(IF(fd.nettype = 'BS', 1 , 0)) AS `BS`,
+			SUM(IF(fd.nettype = 'ZN', 1 , 0)) AS `ZN`,
+			SUM(IF(fd.nettype = 'LN', 1 , 0)) AS `LN`,
+			SUM(IF(fd.nettype = 'LL', 1 , 0)) AS `LL`,
+			SUM(IF(fd.nettype = 'HL', 1 , 0)) AS `HL`,
+			SUM(IF(fd.nettype = 'CN', 1 , 0)) AS `CN`,
+			SUM(IF(fd.nettype = 'TR', 1 , 0)) AS `TR`,
+			SUM(IF(fd.nettype = 'O', 1 , 0)) AS `O`,
+			(SUM(IF(fd.nettype = 'GN', 1 , 0)) + SUM(IF(fd.nettype = 'MF', 1 , 0)) + SUM(IF(fd.nettype = 'BS', 1 , 0)) + 
+			SUM(IF(fd.nettype = 'ZN', 1 , 0)) + SUM(IF(fd.nettype = 'LN', 1 , 0)) + SUM(IF(fd.nettype = 'LL', 1 , 0)) + 
+			SUM(IF(fd.nettype = 'HL', 1 , 0)) + SUM(IF(fd.nettype = 'CN', 1 , 0)) + SUM(IF(fd.nettype = 'TR', 1 , 0)) + 
+			SUM(IF(fd.nettype = 'O', 1 , 0))) as `Day Total`
+			FROM
+			fishcatchdetail AS fd
+			Inner Join fishcatchsummary AS fs ON fd.catchsummaryid = fs.id
+			WHERE fd.id <> ''
+			".$paginate->getSearchAndFilterSQL()." GROUP BY fs.landingsiteid, fs.daterecorded ".$paginate->getSortSQL();
+	// debugMessage($all_results_query);
+
+	$nettype = new LookupType();
+	$nettype->setName("NET_TYPES");
+	$allmethods = $nettype->getOptionValues();
+	
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+/**/
+#listresults_div {
+	float: left;
+	width: 100%;
+	overflow:auto;
+	max-height:500px;	
+}
+#listresults_div h2 {
+	background: url("<?php echo $this->baseUrl('images/report_header_bg.png'); ?>");
+	background-repeat:repeat-x;
+	width:975px;	
+}
+table.list {
+	width:100%;
+}
+table.list thead td {
+	background: url('<?php echo $this->baseUrl('images/report_header_bg.png'); ?>') repeat-x; 	
+}
+table.list thead tr td {
+	vertical-align:middle;
+	text-align:center;
+	height:32px !important;
+	height:28x;
+	color:#FFFFFF;	
+}
+table.list tbody tr td {
+	border:solid 1px #CCCCCC;
+	vertical-align:middle;
+	text-align:center;
+}
+label.error {	
+	display:inline;
+}
+</style>
+<script>
+$(document).ready(function(){
+	// change the date format since the short format with / corrupts the urls
+	datepickerOpts.dateFormat = '<?php echo $config->dateandtime->javascriptmediumformat; ?>'; 
+	$("#startdate, #enddate").datepicker(datepickerOpts); 
+	$("#reportform").validate({
+		errorPlacement: function(error, element) {			
+			if(element.attr("name") == "startdate"){
+				error.appendTo("#startdateerror");
+			}
+			if(element.attr("name") == "enddate" ){
+				error.appendTo("#enddateerror");
+			}				
+		},
+		rules: {
+			startdate: "required",		
+			enddate: {
+				"required": true, 					
+				enddateafterstartdate: true
+			}				
+		}, 
+		// the messages for each of the fields being validated
+		messages: {				
+			startdate: "Select a Start Date",			
+			enddate: {
+				"required": "Select an End Date"
+			}
+		}
+	});	
+
+});
+</script>
+<?php if(isEmptyString($request->excel)) {	?>
+	<h2><?php echo $title; ?></h2>
+<?php } else { ?>
+	<?php 
+		if($request->startdate == $request->enddate){
+			$excltitle = "Average Boats Per Day Report: (".$request->startdate.")";
+		} else {
+			$excltitle = "Average Boats Per Day Report: (".$request->startdate." - ".$request->enddate.")";
+		}
+	?>
+	<h2><?php echo $excltitle; ?></h2>
+<?php } ?>
+<form action="<?php echo $this->baseUrl("report/averageboats"); ?>" method="get" id="reportform">
+<?php if(isEmptyString($request->excel)) {	?>
+  <table class="reportfiltercontainer">
+    <tr>
+      <td><table class="reportfiltersection">
+          <tr>
+            <td class="label">Start:<span class="requiredmark">*</span>        
+            	<input name="startdate"  id="startdate" type="text"  class="datefield startdate autosubmitsearchform" value="<?php echo $startdate; ?>" /></td>
+            <td class="label">End:<span class="requiredmark">*</span>
+            	<input name="enddate" id="enddate" type="text" class="datefield autosubmitsearchform"  value="<?php echo $enddate; ?>" /></td>
+            <td><?php
+					$districtlist = new LookupType(); 
+					$districtlist->setName("ALL_DISTRICTS");
+					$districtdropdown = new Zend_Form_Element_Select('fs'.HTML_TABLE_COLUMN_SEPARATOR.'districtid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Districts'), $districtlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('filterselect', 'chzn-select')
+										)
+									);
+					$districtdropdown->setValue($request->getParam('fs'.HTML_TABLE_COLUMN_SEPARATOR.'districtid')); 
+					echo $districtdropdown->render(); 
+				  ?></td>
+            <td><?php					
+					$landingsite = new Zend_Form_Element_Select('fs'.HTML_TABLE_COLUMN_SEPARATOR.'landingsiteid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Landing Sites'), getLandingSitesForLocation("")),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array("filterselect", 'chzn-select')											
+										)
+									);
+					$landingsite->setValue($request->getParam('fs'.HTML_TABLE_COLUMN_SEPARATOR.'landingsiteid')); 
+					echo $landingsite->render(); 
+                ?></td>    
+          </tr>
+          <tr>
+		  	<td><div id="startdateerror"></div></td>
+            <td><div id="enddateerror"></div></td>           
+            <td></td>           
+            <td></td>           
+          </tr>
+          <tr>
+		  	<td></td>
+            <td></td>
+            <td></td>           
+            <td></td> 
+          </tr>
+        </table></td>
+      <td align="left"><table>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="generate" title="Click here to Generate Report"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Generate Report</button>
+             <input type="hidden" name="generate" value="true" /></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php } ?>
+</form>
+<?php if (isEmptyString($request->generate)) { ?>
+	Please select some options to filter the existing data
+<?php  } else { 
+		// debugMessage($all_results_query);
+		$paginate->setItemCountFromSQLQuery($all_results_query);
+		
+		$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+		# echo $current_results_query;
+		$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+		$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+		# the query string to be appended to the return to list URL
+		$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+		
+	  	$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($current_results_query);
+	
+		$has_no_data = (count($result) == 0) ? true : false; 
+		
+		# This variable stores the number of redundant columns returned in the query so that when we are printing
+		# we are able to know how many columns to ignore. This variable is sent in the print URL
+		$number_of_redundant_columns = 3;
+		
+		# the columns which contain numbers in the invoice query
+		# Please note that the column count begins at 0
+		$export_number_column_list = "";
+
+		// show a message that there are no items to display
+		if ($has_no_data) {
+			$this->headTitle("No Data for this Report"); 
+	?>
+  <div class="norecords"><label class="error"><?php echo $this->translate("report_global_norecords_label"); ?></label></div>
+  <?php } else { ?>
+  <?php if(isEmptyString($request->excel)) {	?>      
+      <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->url(array_merge_maintain_keys(array(PAGE_CONTENTS_ONLY => 'true', EXPORT_TO_EXCEL => 'true'), $request->getQuery())); ?>"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <div id="listresults_div">
+    <table class="list">
+        <thead>           
+            <tr>        
+                <td style="width:150px;">Days</td>        
+                <?php 
+					foreach($allmethods as $method){
+				?>
+                <td align="center"><?php echo $method; ?></td>
+                <?php } ?>
+                <td>Total</td>
+            </tr>      	
+        </thead>
+        <tbody id="results">
+			<?php 
+				$alldata = array();	
+				$noofrows = 0;			  		
+            	foreach($result as $line){					
+            ?>
+            <tr>        
+                <td style="text-align:left;"><?php echo $line['Date Recorded']; ?></td>        
+				<?php
+					foreach($allmethods as $method){
+				?>
+                    <td align="center" valign="middle">
+                    <?php						
+						echo $line[$method];
+						$alldata[$method][] = $line[$method];						
+					?>	
+                    </td>
+                <?php } ?>
+                <td><b><?php echo $line['Day Total']; ?></b></td>
+            </tr> 
+			<?php $noofrows++;						
+                } // end processing results 
+            ?>
+            <tr>
+            	<td style="text-align:left;"><b>Total No. of Boats</b></td>
+                <?php
+					// debugMessage($alldata);
+					$totals_array =  array();
+					$totals_avg =  0;
+					foreach($allmethods as $method){
+				?>
+                    <td align="center" valign="middle"><b>
+						<?php
+							$sum = array_sum($alldata[$method]);
+							echo $sum == 0 ? '---' : $sum; 
+							${$method.'_avg'} = '---';
+							if($sum != 0){
+								$totals_array[] = $sum;
+								${$method.'_avg'} = round($sum/$noofrows);
+								$totals_avg += ${$method.'_avg'};
+							}
+						?></b>
+                    </td>
+                <?php } ?>
+                <td><b><?php echo array_sum($totals_array); ?></b></td>
+            </tr>
+            <tr>
+            	<td style="text-align:left;"><b>Average No. of Boats</b></td>
+                <?php 
+					foreach($allmethods as $method){						
+				?>
+                    <td align="center" valign="middle"><b>
+                    <?php						
+						echo ${$method.'_avg'};
+                    ?></b>
+                    </td>
+                <?php } ?>
+                <td><b><?php echo $totals_avg; ?></b></td>
+            </tr>
+        </tbody>
+    </table>
+  </div>
+  <?php			
+	 } // end check that there are results 
+   } // end check for generate action
+  ?>
+
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

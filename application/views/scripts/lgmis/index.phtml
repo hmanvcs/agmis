@@ -1,0 +1,71 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+
+	$title = $this->translate('lgmis_name'); 
+	$this->headTitle($title);
+?>
+<script>
+$(document).ready(function() {
+	$(function() {
+
+		$('#slideshow img:first').fadeIn(1000, function() {
+			$('#slideshow').cycle();
+		});
+	});
+});
+</script>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+#mainshow{
+	width: 500px;
+	height: 370px;
+	float: right;
+	margin-left: 10px;
+	
+}
+#slideshow img { 
+	display: none;
+}
+
+</style>
+<div id="lgmis">
+<?php require_once APPLICATION_PATH.'/views/scripts/lgmis/menu.phtml'; ?>
+<h1 class="pagetitle"><?php echo $title; ?></h1>
+	
+    <div id="mainshow">
+    
+    	<div id="slideshow" class="pics">
+			<?php 
+			
+			//display the images randomly
+            $tourismimages = glob("uploads/lgmis/tourism/*.jpg");
+			
+			//randomise the array so that each time the page loads, a different image starts the slide show
+			shuffle($tourismimages);
+            foreach($tourismimages as $key => $value){
+             ?>
+             
+            <img src="<?php echo $this->baseUrl($value);?>" width="500"  />
+            
+           <?php } ?> 
+    	</div>
+
+</div>
+<h3>Back Ground Information.</h3>
+The Government of Uganda, under the auspices of the United Nations Capital Development Fund (UNCDF) and United Nations Development Programme (UNDP) embarked on the implementation of the Third District Development Programme (DDP-III), of which the main focus is to stimulate Local Economic Development (LED). LED is a process in which tripartite partnerships between LG, the private sector and the community are established to manage and utilize resources at the local level in order to stimulate the economy of a well-defined territory which functions within a national economic, policy, regulatory and institutional context.<br /><br />
+The programme comes against a backdrop of over ten years of implementing the Uganda Decentralization Policy and the implementation of a number of economic and legislative reforms in the country.<br /><br />
+This project's focus is on redressing some of market system failures by enhancing access and interpretation of information. It is based on the conceptual thinking that was developed by FIT Uganda Limited (a private partner/Consultancy) in 2007 to give a new definition of Market Information Services (MIS).<br /><br />
+As part of the improvement of systems and methodologies in the Local Governments for LED to be effective, UNCDF/UNDP in partnership with the Ministry of Local Government engaged the services of a competent consultancy firm(FIT Uganda Ltd) to address the gaps and constraints in the sourcing, collection, analyzing, storing and interpreting of market information in 8 pilot districts and 2 pilot municipalities under the DDP Programme namely Busia, Kayunga, Isingiro, Kitgum, Arua, Amuru, Abim, Nwoya districts, Arua  municipality and  Busia Municipality respectively.<br />
+<br />
+This website is a result of this project that involved Development of a sector based reporting template system that will inform the districts on performance of sectors and indicators of business and economic growth within district/municipality.<br />
+<br />
+Through this website you are able to view and capture the most current market information from these districts and municipalities.

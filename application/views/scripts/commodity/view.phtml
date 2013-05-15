@@ -1,0 +1,86 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$commodity = new Commodity();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("commodity_pagetitle_view"); 
+	$commodity->populate(decode($request->id));
+		
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Commodity? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 		
+	}); 
+</script>
+<div class="pageinfo"><?php echo $this->translate("commodity_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $title; ?></td>
+  </tr>  
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_name_label"); ?>:</td>
+    <td><?php echo $commodity->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_description_label"); ?>:</td>
+    <td><?php echo isEmptyString($commodity->getDescription()) ? '--' : $commodity->getDescription(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_category_label"); ?>:</td>
+    <td><?php echo $commodity->getCategory()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_pricecategory_label"); ?>:</td>
+    <td><?php echo $commodity->displayPriceCategories(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_parent_label"); ?>:</td>
+    <td><?php echo isEmptyString($commodity->getParentID()) ? '--' : $commodity->getParent()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_units_label"); ?>:</td>
+    <td><?php echo isEmptyString($commodity->getUnitID()) ? '--' : $commodity->getUnits()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_minprice_label"); ?>(<?php echo $config->currency->defaultsymbol; ?>):</td>
+    <td><?php echo isEmptyString($commodity->getMinPrice()) ? '--' : formatNumber($commodity->getMinPrice()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_maxprice_label"); ?>(<?php echo $config->currency->defaultsymbol; ?>):</td>
+    <td><?php echo isEmptyString($commodity->getMaxPrice()) ? '--' : formatNumber($commodity->getMaxPrice()); ?></td>
+  </tr>
+</table>
+<br />
+<table class="formtable">
+  <tfoot>
+    <tr>
+      <td>	  	
+        <?php if ($acl->checkPermission('Commodity', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('commodity/delete/entityname/Commodity/id/'.encode($commodity->getID()).'/'.SUCCESS_MESSAGE.'/Commodity have been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("commodity/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("commodity_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("commodity_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Commodity', ACTION_EDIT)) { ?>        
+        <a href="<?php echo $this->baseUrl('commodity/index/id/'.encode($commodity->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("commodity_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("commodity_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Commodity', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('commodity/list'); ?>" class="positiveaction" title="<?php echo $this->translate("commodity_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("commodity_button_list"); ?></a>
+        <?php } ?>
+      </td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

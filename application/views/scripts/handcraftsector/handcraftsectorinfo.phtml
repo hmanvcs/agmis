@@ -1,0 +1,145 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$handcraft = new HandCraftInformation();
+	if (isApplicationLGMIS()) {
+		$handcraft->setLocationID($session->getVar('districtid')); 
+	}
+	$posturl = $this->baseUrl("handcraftsector/processhandcraftsectorinfo");
+	$title = $this->translate("handcraft_input_pagetitle_new"); 
+	$button_title_save = $this->translate("handcraftinfo_save_button_new"); 
+	
+	# Fetch Existing Price Details for the current submission.
+	# If updating, fetch all records for the passed quarter
+	if($request->locationid){
+		$handcraft->setLocationID(decode($request->locationid));
+		$button_title_save = $this->translate("handcraftinfo_button_update"); 	
+	}	
+		$query = "SELECT cd.id AS `Commodity ID`,  h.id AS `Handcraft ID`, cd.`name` AS `Commodity`, h.materialsource AS `Material Source`, h.`materialtype` AS `Material Type`, h.`market` AS `Markets`, h.`creditsource` AS `Sources of Credit`, l.`id` AS `Location` FROM commodity AS cd 
+		Inner Join commoditypricecategory AS cp ON (cd.id = cp.commodityid)
+LEFT JOIN `handcraftinformation` h ON(h.commodityid = cd.id)
+LEFT JOIN location l ON (h.locationid = l.id AND l.id = '".$handcraft->getLocationID()."') WHERE cp.pricecategoryid= '9' ORDER BY cd.`name`";
+
+	 
+	$conn = Doctrine_Manager::connection();  
+	$handcraftsectors = $conn->fetchAll($query);
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		$("#handcraftsectorinfoform").validate({		
+			
+		});
+			
+		// Copy buttons at the top to the bottom
+		$("td.bottombuttons").html($("td.topbuttons").html());
+		
+	}); 
+	
+</script>
+<style>
+textarea {
+	width: 146px; 
+} 
+
+#rightcolumn {
+	display: none; 
+} 
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.formtable {
+	width: 100%; 
+} 
+table.formtable tr.sectionheading {
+	background-repeat:repeat; 
+} 
+</style>
+<div class="pageinfo"><?php echo $this->translate("handcraft_input_create_info"); ?></div>
+<form id="handcraftsectorinfoform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td class="topbuttons"><a href="<?php echo $this->baseUrl("dashboard"); ?>" title="<?php echo $button_title_save; ?>">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction save" name="save"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title_save; ?></button></td>
+      </tr>
+    </tfoot>
+  </table>
+ <?php if (!isApplicationLGMIS()) {
+    		// hide the districtt for LGMIS users
+    ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("handcraft_input_location_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+       <td><?php
+      	$districtlist = new LookupType(); 
+      	$districtlist->setName("ALL_DISTRICTS");
+       	$districtdropdown = new Zend_Form_Element_Select('locationid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+		$districtdropdown->setValue($handcraftsectors[0]['Location']); 
+		echo $districtdropdown->render(); 
+      ?></td>
+    </tr>
+    <?php } ?>
+  <table class="formtable commodities">
+    <thead>
+      <tr class="sectionheading">
+        <td align="left" style="width:200px;"><?php echo $this->translate("handcraft_commodity_label"); ?></td>
+        <td align="center"><?php echo $this->translate("handcraft_materialsource_label"); ?></td>
+        <td align="center"><?php echo $this->translate("handcraft_materialtype_label"); ?></td>
+        <td align="center"><?php echo $this->translate("handcraft_market_label"); ?></td>
+        <td align="center"><?php echo $this->translate("handcraft_creditsource_label"); ?></td>
+      </tr>
+    </thead>
+    <?php
+	    //declare a variable for the commodity id since it is read from different tables 
+		// depending on action being executed
+		$commoodityid = "";
+		$handcraftinfoid = "";
+		$i = 0;		
+		foreach($handcraftsectors as $handcraftsector){
+			// if action is create, blank out any prices preset from previous submission			
+  	?>
+    <tr>
+      <td align="left" class="label nowrapping">
+	  <?php echo $handcraftsector['Commodity'];?>
+        <input type="hidden" name="commodityid[]" value="<?php echo $handcraftsector['Commodity ID']; ?>" /></td>
+      <td align="center"><textarea name="materialsource[]"><?php echo $handcraftsector['Material Source']; ?></textarea></td>
+      
+      <td align="center"><textarea name="materialtype[]"><?php echo $handcraftsector['Material Type']; ?></textarea></td>
+      <td align="center"><textarea name="market[]"><?php echo $handcraftsector['Markets']; ?></textarea></td>
+      <td align="center"><textarea name="creditsource[]"><?php echo $handcraftsector['Sources of Credit']; ?></textarea>
+      <input type="hidden" name="id[]" value="<?php echo $handcraftsector['Handcraft ID']; ?>" /></td>
+    </tr>
+    <?php $i++;
+		}	
+	?>
+    <?php if (isApplicationLGMIS()) { ?>
+         	 <input type="hidden" id="locationid" name="locationid" value="<?php echo $handcraft->getLocationID(); ?>" />
+             
+    <?php } ?>
+           
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td class="bottombuttons"></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

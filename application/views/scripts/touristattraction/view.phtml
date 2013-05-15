@@ -1,0 +1,96 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$touristattraction = new TouristAttraction();
+	
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("touristattraction_pagetitle_view"); 
+	$touristattraction->populate(decode($request->id));
+	
+	$this->headTitle($title);  
+?>
+
+<div class="pageinfo"><?php echo $this->translate("touristattraction_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $title; ?></td>
+  </tr>
+  <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_name_label"); ?>: </td>
+      <td><?php echo $touristattraction->getName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_district_label"); ?>:</td>
+       <td><?php echo $touristattraction->getDistrict()->getName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_subcounty_label"); ?>:</td>
+       <td><?php echo $touristattraction->getSubcounty()->getName(); ?></td>
+    </tr>
+    
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_physical_location_label"); ?></td>
+      <td><?php echo $touristattraction->getPhysicalLocation(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_contact_location_label"); ?></td>
+      <td><?php echo $touristattraction->getContact(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_tourist_attractions_label"); ?>:</td>
+      <td><?php echo $touristattraction->getTouristAttractions(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_price_offers_label"); ?>:</td>
+      <td><?php echo $touristattraction->getPriceOffers(); ?></td>
+    </tr>	
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_accomodation_label"); ?>:</td>
+      <td><?php echo $touristattraction->getAccomodation(); ?></td>
+    </tr>
+     <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_entertainment_label"); ?>:</td>
+      <td><?php echo $touristattraction->getEntertainment(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_transport_label"); ?>:</td>
+      <td><?php echo $touristattraction->getTransport(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_otherservices_label"); ?>:</td>
+      <td><?php echo $touristattraction->getOtherServices(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_booking_label"); ?>:</td>
+      <td><?php echo $touristattraction->getBooking(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_tour_packages_label"); ?>:</td>
+      <td><?php echo $touristattraction->getTourPackages(); ?></td>
+    </tr>
+  
+</table>
+<table class="formtable formactions">
+  <tfoot>
+    <tr>
+      <td><?php if ($acl->checkPermission('Tourist Attraction', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('touristattraction/delete/entityname/touristattraction/id/'.encode($touristattraction->getID()).'/'.SUCCESS_MESSAGE.'/Tourist Attraction has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("touristattraction/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("touristattraction_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("touristattraction_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Tourist Attraction', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('touristattraction/index/id/'.encode($touristattraction->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("touristattraction_pagetitle_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("touristattraction_pagetitle_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Tourist Attraction', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('touristattraction/list'); ?>" class="positiveaction" title="<?php echo $this->translate("touristattraction_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("touristattraction_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,79 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$village = new Village();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("village_pagetitle_view"); 
+	$village->populate(decode($request->id));
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Village? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 		
+	}); 
+</script>
+<div class="pageinfo"><?php echo $this->translate("village_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $title; ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("village_region_label"); ?>:</td>
+    <td><?php echo $village->getRegion()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("village_district_label"); ?>:</td>
+    <td><?php echo $village->getDistrict()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("village_county_label"); ?>:</td>
+    <td><?php echo $village->getCounty()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("village_subcounty_label"); ?>:</td>
+    <td><?php echo $village->getSubcounty()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("village_parish_label"); ?>:</td>
+    <td><?php echo $village->getParish()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("village_name_label"); ?>:</td>
+    <td><?php echo $village->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("village_description_label"); ?>:</td>
+    <td><?php echo $village->getDescription(); ?></td>
+  </tr>
+</table>
+<table class="formtable formactions">
+  <tfoot>
+    <tr>
+      <td><?php if ($acl->checkPermission('Village', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('village/delete/entityname/Village/id/'.encode($village->getID()).'/'.SUCCESS_MESSAGE.'/Village has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("village/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("village_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("village_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Village', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('village/index/id/'.encode($village->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("village_pagetitle_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("village_pagetitle_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Village', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('village/list'); ?>" class="positiveaction" title="<?php echo $this->translate("village_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("village_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,213 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = "User Accounts";
+	$plural = "Users";
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("u.firstname","u.lastname","u.email","u.phonenumber"));
+	$paginate->setFilterColumns(array("u.isactive","u.locationid","u.marketid","g.groupid"));
+	$paginate->setDefaultSortBy("u.datecreated");	
+	$paginate->setDefaultSortOrder("DESC");
+	$paginate->setItemCountPerPage("25");
+
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT u.id, concat(u.firstname, ' ', u.lastname) as `Name`, u.email as `Email Address`, u.phonenumber as `Phone Number`, l.name as `District`, acg.name as `Group`, u.isactive as `Status` FROM useraccount as u left join aclusergroup as g ON(u.id=g.userid) left join aclgroup as acg ON(g.groupid=acg.id) left join location as l ON(u.locationid=l.id) left join pricesource as p ON(u.marketid=p.id) WHERE u.email <> '' ".$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+	
+	# debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+?>
+<style>
+.filterselect {	
+	width: 150px;
+}
+</style>
+<form action="<?php echo $this->baseUrl("profile/listsearch"); ?>" method="get" id="usersform">
+<table class="filtercontainer">
+    <tr>
+        <td>
+            <table class="filtersection">
+                <tr>
+                    <td>                    
+                    <?php
+				      	$regionlist = new LookupType(); 
+				      	$regionlist->setName("ALL_REGIONS");
+				       	$regiondropdown = new Zend_Form_Element_Select('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid',
+											array(
+												'multiOptions' => array_merge_maintain_keys(array('' => 'All Regions'), $regionlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+												'decorators' => array('ViewHelper'),
+												'class' => array('autosubmitsearchform','filterselect', 'chzn-select'),
+												'title' => 'Filter Users By Region'
+											)
+										);
+						$regiondropdown->setValue($request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid')); 
+						echo $regiondropdown->render(); 
+				      ?>&nbsp;
+                      <?php
+						$districtlookup= new LookupType(); 
+						$districtlookup->setName("ALL_DISTRICTS");
+						$districtdropdown = new Zend_Form_Element_Select('u'.HTML_TABLE_COLUMN_SEPARATOR.'locationid',
+											array(
+												'multiOptions' => array_merge_maintain_keys(array('' => 'All Districts'), $districtlookup->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+												'decorators' => array('ViewHelper'),
+												'class' => array('autosubmitsearchform','filterselect', 'chzn-select'),
+												'title' => 'Filter Prices Sources By District'																						
+											)
+										);
+						$districtdropdown->setValue($request->getParam('u'.HTML_TABLE_COLUMN_SEPARATOR.'locationid')); 
+						echo $districtdropdown->render(); 
+					?>&nbsp;
+                    <?php			
+                        $yesnostatus = new LookupType(); 
+                        $yesnostatus->setName("ACTIVE_STATUS");                        
+                        $cb = new Zend_Form_Element_Select('u'.HTML_TABLE_COLUMN_SEPARATOR.'isactive',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array('' => 'All Statuses'), $yesnostatus->getOptionValues()),								'view' => new Zend_View(),                                       
+                                        'decorators' => array('ViewHelper'),
+										'class' => array('autosubmitsearchform','chzn-select'),
+										'title' => 'Filter Users By Status'		
+                                    )
+                        );
+                        $cb->setValue($request->getParam('u'.HTML_TABLE_COLUMN_SEPARATOR.'isactive')); 
+                        echo $cb->render();	
+                    ?>
+                    </td>                   
+                </tr>
+                <tr>
+                	<td>    
+                    <?php
+						$marketsource= new LookupType(); 
+						$marketsource->setName("ALL_MARKET_SOURCES");
+						$source = new Zend_Form_Element_Select('u'.HTML_TABLE_COLUMN_SEPARATOR.'marketid',
+											array(
+												'multiOptions' => array_merge_maintain_keys(array('' => 'All Markets'), $marketsource->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+												'decorators' => array('ViewHelper'),
+												'class' => array('autosubmitsearchform','filterselect', 'chzn-select'),
+												'title' => 'Filter Users By Market'											
+											)
+										);
+						$source->setValue($request->getParam('u'.HTML_TABLE_COLUMN_SEPARATOR.'marketid')); 
+						echo $source->render(); 
+					?>&nbsp;
+                    <?php 
+						$lookupaclgroups = new LookupType();
+						$lookupaclgroups->setName("ALL_ACL_GROUPS"); 
+		
+						$cb = new Zend_Form_Element_Select('g'.HTML_TABLE_COLUMN_SEPARATOR.'groupid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'All Roles'), $lookupaclgroups->getOptionValuesFromQuery()),								'view' => new Zend_View(), 
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('autosubmitsearchform','filterselect', 'chzn-select'),
+										'title' => 'Filter Users By Role'
+									)
+								);
+						$cb->setValue($request->getParam('g'.HTML_TABLE_COLUMN_SEPARATOR.'groupid')); 
+						echo $cb->render();	
+					?>&nbsp;</td>                   
+                </tr>                
+            </table>
+        </td>
+        <td>
+            <table>
+                <tr>
+                    <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="Enter your search term here and click search" /></td>
+                </tr>
+                <tr>
+                    <td><button type="submit" class="positiveaction" id="searchbutton" title="Click here to Search or Filter"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Search</button></td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+	<label class="error"><?php echo "There are no users to display"; ?></label>        
+<?php } else { ?>
+<div id="counter"><?php echo $paginate->getItemCounterText()." ".$plural; ?></div>
+<div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+<div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>    
+  <?php if ($acl->checkPermission('User Account', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>  
+<div id="listresults_div">
+	<h2><?php echo $title; ?></h2>	  
+      <table class="list">	  
+      	<thead>
+          <tr>
+	       	<?php if ($acl->checkPermission('User Account', ACTION_EDIT)) { ?>
+            	<td>Edit</td>
+            <?php } ?>
+            <td><?php echo $paginate->getSortLinkForColumn('firstname','Name'); ?></td>                        
+            <td><?php echo $paginate->getSortLinkForColumn('email','Email'); ?></td>
+            <td><?php echo $paginate->getSortLinkForColumn('phonenumber','Phone'); ?><img src="<?php echo $this->baseUrl('images/spacer.gif'); ?>" width="45" height="1" /></td>		
+            <td><?php //echo $paginate->getSortLinkForColumn('isactive','Status'); ?>District<img src="<?php echo $this->baseUrl('images/spacer.gif'); ?>" width="45" height="1" /></td>
+            <td><?php //echo $paginate->getSortLinkForColumn('isactive','Status'); ?>Type</td>
+            <td><?php echo $paginate->getSortLinkForColumn('isactive','Status'); ?></td> 
+          </tr>
+      	</thead>
+		<tbody>
+			<?php 				  		
+            	foreach($result as $line){							
+            ?>
+            <tr>
+            	<?php if ($acl->checkPermission('User Account', ACTION_EDIT)) { ?>
+            	<td align="center"><a href="<?php echo $this->baseUrl("profile/index/id/".encode($line['id'])); ?>" title="Update User Details"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" alt="Update User Details" /></a></td>
+                <?php } ?>
+            	<td><a href="<?php echo $this->viewUrl(array("id" => encode($line['id']))); ?>"><?php echo $line['Name']; ?></a></td>
+            	<td><?php echo $line['Email Address']; ?></td>            	
+                <td><?php echo $line['Phone Number'] == "" ? "---": $line['Phone Number']; ?></td>
+                <td><?php echo $line['District']; ?></td>
+                <td><?php echo $line['Group']; ?></td>
+            	<td>
+            		<?php echo ($line['Status'] == "Y") ? 
+            			'<img src="'.$this->baseUrl("images/tick.png").'" alt="User Active" />' : 
+            			'<img src="'.$this->baseUrl("images/cross.png").'" alt="User Inactive" />' ;  
+            		?>
+            	</td>                      
+            </tr>
+            <?php 						
+            	} // end processing results 
+            ?>
+		</tbody>
+	  </tr>
+	</table>
+</div>
+<?php			
+	} // end check that there are results    	
+?>
+<div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

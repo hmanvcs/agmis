@@ -1,0 +1,205 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("report_latest_marketprices_pagetitle");
+	$this->headTitle($title);
+	
+	$commoditieslist = new LookupType(); 
+	$commoditieslist->setName("ALL_MARKET_COMMODITIES");	
+	$commodities = $commoditieslist->getOptionValuesFromQuery();
+	
+	if(!isEmptyString($request->commodityid) && !isEmptyString($request->generate)){		
+		$all_results_query = "SELECT
+		  d.datecollected as datecollected,
+		  d.sourceid as sourceid,		
+		  d.retailprice AS `Retail Price`,
+		  d.wholesaleprice AS `Wholesale Price`,
+		REPLACE(d2.name,' Market','')as `Market`
+		FROM
+		  commoditypricedetails AS d
+		  INNER JOIN (SELECT
+		  cp.sourceid,  MAX(cp.datecollected) AS datecollected, p.name
+		FROM
+		  commoditypricedetails cp
+		  INNER JOIN commoditypricesubmission AS cs1 ON (cp.`submissionid` = cs1.`id` AND cs1.`status` = 'Approved')
+		  INNER JOIN pricesource AS p  ON (cp.sourceid = p.id AND p.`applicationtype` = 0 )  
+		 WHERE cp.`commodityid` = ".$request->commodityid." AND cp.`pricecategoryid` = 2
+		GROUP BY cp.sourceid) AS d2 ON (d.`sourceid` = d2.sourceid AND d.`datecollected` = d2.datecollected) WHERE d.`commodityid` = ".$request->commodityid."
+		  AND d.`pricecategoryid` = 2
+		ORDER BY d2.name";
+
+		// debugMessage($all_results_query);	
+		$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($all_results_query);
+		// debugMessage($result);
+		$has_no_data = (count($result) == 0) ? true : false; 
+		
+		if(!$has_no_data){ 
+			$processeddata = array();
+			foreach($result as $key => $line){
+				$processeddata['marketids'][] = $line['sourceid'];
+				$processeddata['markets'][] = formatNumber($line['Market']);
+				$processeddata['retailprices'][] = $line['Retail Price'];
+				$processeddata['wholesaleprices'][] = $line['Wholesale Price'];
+			}
+			
+			// debugMessage($result);
+			// create list for market categories
+			$marketlist = implode("', '",$processeddata['markets']);
+			$marketlist = "'".$marketlist;
+			$marketlist = $marketlist."'";
+			// create list for retail price
+			$retaillist = implode(',',$processeddata['retailprices']);
+			// create list for wholesale price
+			$wholesalelist = implode(',',$processeddata['wholesaleprices']);	
+		}		
+	}
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+
+</style>
+<script type="text/javascript">
+var chart;
+$(document).ready(function() {
+	// validate required fields
+	$("#currentmarketprices").validate({		
+		rules: {
+			commodityid: "required"		
+		}, 
+		// the messages for each of the fields being validated
+		messages: {			
+			commodityid: "Select a Commodity"
+		},
+		errorPlacement: function(error, element) {			
+			if(element.attr("name") == "commodityid" ){
+				error.appendTo("#commodityerror");
+			}				
+		}
+	});	
+	
+	<?php if(!isEmptyString($request->getParam('commodityid')) && !$has_no_data){ ?>
+		chart = new Highcharts.Chart({
+		  chart: {
+			 renderTo: 'container',
+			 defaultSeriesType: 'column'
+		  },
+		  credits: {
+				enabled: false
+			},
+		  title: {
+			 text: "Current '<?php echo $commodities[$request->commodityid]; ?>' Prices Report<br>",
+			 margin: 30
+		  },
+		  xAxis: {
+			categories: [<?php echo $marketlist; ?>],
+			labels: {
+				rotation: 270,
+				align: 'right',
+				style: {
+					color: '#6D869F',
+					fontWeight: 'bold'
+				}
+			}
+		  },
+		  yAxis: {         
+			 title: {
+				text: 'Price (UGX)'
+			 }
+		  },
+		  legend: {
+			 layout: 'vertical',         
+			 align: 'left',
+			 verticalAlign: 'top',
+			 x: 10,
+			 y: -10,
+			 floating: true,
+			 shadow: true
+		  },   
+		  tooltip: {
+			 formatter: function() {
+				return this.series.name + ' for <?php echo $commodities[$request->commodityid]; ?> in ' +this.x + ': UGX '+ Highcharts.numberFormat(this.y, 0);
+			 }
+		  },
+		  plotOptions: {
+			 column: {
+				pointPadding: 0.2,
+				borderWidth: 0
+			 }
+		  },
+			series: [{
+				 name: 'Retail Price',
+				 data: [<?php echo $retaillist; ?>]
+			}, {
+				 name: 'Wholesale Price',
+				 data: [<?php echo $wholesalelist; ?>]
+			}],
+			exporting: {
+			  enabled:true,
+			  filename: 'ReportFileName'
+			}			
+	   });  
+	<?php } ?>
+});
+</script>
+<h2><?php echo $title; ?></h2>
+<form action="<?php echo $this->baseUrl("report/currentmarketprices"); ?>" method="get" id="currentmarketprices">
+  <table class="reportfiltercontainer">
+    <tr>
+      <td><table class="reportfiltersection">          
+          <tr>            
+            <td width="200"><b>Commodity</b> <span class="requiredmark">*</span></td> 	
+          </tr>
+          <tr>			
+            <td><?php
+					$commoditiesdropdown = new Zend_Form_Element_Select('commodityid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Commodities'), $commodities),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array("filterselect", 'chzn-select'),
+											'title' => 'Filter Prices By Commodity'		
+										)
+									);
+					$commoditiesdropdown->setValue($request->getParam('commodityid')); 
+					echo $commoditiesdropdown->render(); 
+				  ?>
+            </td>
+          </tr>
+          <tr>		  	     
+            <td><div id="commodityerror"></div></td>                 
+          </tr>
+        </table></td>
+      <td align="left"><table>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="generate" title="Click here to Generate Report"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Generate Report</button>
+             <input type="hidden" name="generate" value="true" /></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+<?php if(!isEmptyString($request->commodityid) && !isEmptyString($request->generate)){ ?>  
+	<?php
+        // show a message that there are no items to display
+        if ($has_no_data) {		
+    ?>
+        <div class="norecords"><label class="error"><?php echo $this->translate("report_global_norecords_label"); ?></label></div>
+    <?php } else { ?>
+        <div id="container"></div>
+    <?php			
+     } // end check that there are results 
+    ?>
+<?php } ?>  
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

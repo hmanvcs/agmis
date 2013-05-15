@@ -1,0 +1,129 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$useraccount = new UserAccount(); 
+	# Set id of the record to populate. If no value in request, use session userid
+	if(isEmptyString($request->id)){
+		$id = $userid;
+	} else {
+		$id = decode($request->id);
+	}
+	
+	$useraccount->populate($useraccount->populate($id));
+	$title = sprintf($this->translate("useraccount_pagetitle_view"), $useraccount->getName()); 
+	$this->headTitle($title); 
+	
+	$userupdatingownaccount = true; 
+	if($userid != $useraccount->getID()){
+		# admin user is view another profile
+		$userupdatingownaccount = false; 
+	} 
+?>
+<script>
+	$(document).ready(function() {
+		// if user deactivates account, confirm action
+		$("#resetpassword").click(function(){
+			var username = '<?php echo $useraccount->getName(); ?>';
+			// Confirm that the user wants to change their password
+			if(window.confirm("Are you sure you want to reset '"+username+"' \n Click 'OK' to proceed or 'Cancel' to stay on this page")){				
+				document.location.href="<?php echo $this->baseUrl("user/recoverpassword/id/".encode($useraccount->getID())); ?>";			
+				return true;
+			} else {
+				return false;
+			}
+		});
+		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this User Account? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 
+	}); 
+</script>
+
+  <div class="pageinfo"><?php echo $this->translate("useraccount_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div><br />
+<?php } ?>
+<table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $this->translate("useraccount_section_general"); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("useraccount_firstname_label"); ?>:</td>
+        <td><?php echo $useraccount->getFirstName(); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("useraccount_lastname_label"); ?>:</td>
+        <td><?php echo $useraccount->getLastName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_othername_label"); ?>:</td>
+        <td><?php echo isEmptyString($useraccount->getOtherName()) ? "---" : $useraccount->getOtherName(); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("useraccount_phonenumber_label"); ?>:</td>
+        <td><?php echo isEmptyString($useraccount->getPhoneNumber()) ? "---" : $useraccount->getPhoneNumber(); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("useraccount_email_label"); ?>:</td>
+        <td><?php echo $useraccount->getEmail(); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:</td>
+        <td>
+       <?php if(!$userupdatingownaccount){ ?>
+        	<a id="resetpassword" href="javascript: doNothing(); " title="Click here to reset user's Password">Reset Password</a>
+       <?php }else{ ?>
+        	<a href="<?php echo $this->baseUrl('profile/changepassword'); ?>" title="Click here to change your Password">Change Password</a>&nbsp;
+       <?php } ?>
+        </td>
+    </tr> 
+    <?php if(!$userupdatingownaccount){ ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_applicationtype_label"); ?>:</td>
+      <td><?php echo $useraccount->getApplicationTypeDescription(); ?></td>
+	</tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_organisation_label"); ?>:</td>
+      <td><?php if (!isEmptyString($useraccount->getOrganisationID())) { echo $useraccount->getOrganisation()->getName(); } ?></td>
+	</tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("useraccount_section_groups"); ?>:</td>
+        <td><?php echo $useraccount->displayGroups(); ?></td>
+    </tr>
+    <tr>
+    	<td class="label"><?php echo $this->translate("useraccount_location_label"); ?>:</td>
+        <td><?php echo $useraccount->getLocation()->getName(); ?></td>
+	</tr>    
+    <tr>
+    	<td class="label"><?php echo $this->translate("useraccount_market_label"); ?>:</td>
+        <td><?php echo $useraccount->getMarket()->getName(); ?></td>
+	</tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("useraccount_isactive_label"); ?>: </td>
+        <td><?php echo ($useraccount->getIsActive() == "Y") ? $this->translate("useraccount_isactiveyes_label") : $this->translate("useraccount_isactiveno_label"); ?></td>
+    </tr>
+    <?php } ?>    
+</table>
+<table class="formtable formactions">
+  <tfoot>
+    <tr>
+      <td><?php if ($acl->checkPermission('User Account', ACTION_DELETE) && !$userupdatingownaccount) { ?>
+        <a href="<?php echo $this->baseUrl('profile/delete/entityname/UserAccount/id/'.encode($useraccount->getID()).'/'.SUCCESS_MESSAGE.'/The User Account has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("profile/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("useraccount_button_delete_label"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("useraccount_button_delete_label"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('User Account', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('profile/index/id/'.encode($useraccount->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("useraccount_button_edit_label"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("useraccount_button_edit_label"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('User Account', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('profile/list'); ?>" class="positiveaction" title="<?php echo $this->translate("useraccount_button_list_label"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("useraccount_button_list_label"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

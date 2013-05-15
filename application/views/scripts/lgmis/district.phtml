@@ -1,0 +1,166 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$location = Location::getInstance($request->locationtype);  
+	$location->populate($request->id);
+	
+	// default title is to enable adding any payee
+	$title = $location->getName(); 
+	$this->headTitle($title);
+	
+	
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.formtable {
+	width: 100%; 
+} 
+
+</style>
+<div id="lgmis">
+<?php require_once APPLICATION_PATH.'/views/scripts/lgmis/menu.phtml'; ?>
+	<table class="formtable">
+    	<tr id="header">
+        	<td colspan="2">
+            	<h1>Profile for <?php echo $location->getName(); ?></h1>
+            </td>
+        </tr>
+        <tr id="details">
+        	<td id="info">
+            	<h3>Statistics</h3>
+                <?php $stats = $location->getListofStatistics();
+                	  if (count($stats) == 0) {
+                	  	echo '<label class="informationmessage">'.$this->translate('lgmis_district_no_statistics').'</label>'; 
+                	  } else {
+                	  	$count = 0; 
+                ?>
+                		<table class="formtable">
+                			<?php foreach ($stats as $key => $value) {
+                					if(($count % 2) == 0) {
+                						echo "<tr>";
+                					} 
+                						echo '<td class="label">'.$key.'</td>' ; 
+                						echo '<td>'.$value.'</td>'; 
+                			?>
+                				
+                			<?php 
+                							if (($count % 2) == 1) {
+                								echo "</tr>"; 
+                							} // end loop to close the row 
+                						$count++; 
+                					} // close loop through available statistics
+                					// close any remaing tds
+                					if ($count % 2 == 1) {
+                						// the last TR was not closed
+                							echo "<td></td><td></td>";
+                						echo "</tr>";
+                					} // end loop for closing the last TR 
+                					?>
+                		</table>
+                <?php
+                	  } // end loop for statistics available 
+                ?>
+                <h3> Summary</h3>
+                <div id="summary">
+                	<label><?php echo nl2br($location->getLocationDetail()->getSummary()); ?></label>
+                </div>
+              	<h3>Map</h3>
+              	<img src="<?php echo $this->baseUrl('uploads/lgmis/maps/'.$request->id.'.jpg'); ?>" title="Map of <?php echo $location->getName(); ?>" alt="Map of <?php echo $location->getName(); ?>" />
+            </td>
+            <td id="prices">
+            	<h3>Current Market Prices</h3>
+                <table class="list" style="width:93%; margin-bottom:0;">
+                    <thead>
+                        <tr>
+                            <td class="commodity">Commodity</td>
+                            <td class="wholesale">Wholesale</td>
+                            <td class="retail">Retail</td>
+                        </tr>
+                    </thead>
+                </table>
+                <div class="scrollable">
+                    <table class="list" id="market">                        
+                        <tbody>
+                        	<?php 
+								$presult = $location->getMarketCurrentPrices();
+								if(count($presult) == 0){
+							?>
+                                <tr>
+                                    <td colspan="3">There are currently no Prices in <?php echo $location->getName(); ?></td>
+                                </tr>
+                            <?php } else { 
+								foreach($presult as $line){
+							?>							
+                            <tr>
+                                <td class="commodity nowrapping"><?php echo $line['name']; ?></td>
+                                <td class="wholesale" align="right"><?php echo formatNumber($line['Wholesale Price']); ?></td>
+                                <td class="retail" align="right"><?php echo formatNumber($line['Retail Price']); ?></td>
+                            </tr>
+                            <?php } } ?>                            
+                        </tbody>                   
+                    </table>
+                </div>
+                <h3>Current Fuel Prices</h3>
+                	<table class="list" id="fuel">                        
+                        <tbody>                           
+                            <tr>
+                                <td>Petro</td>
+                                <td><?php echo formatNumber($location->getCurrentFuelPrices(95)); ?></td>
+                            </tr>
+                            <tr>
+                                <td>Diesel</td>
+                                <td><?php echo formatNumber($location->getCurrentFuelPrices(97)); ?></td>
+                            </tr> 
+                            <tr>
+                                <td>Kerosene</td>
+                                <td><?php echo formatNumber($location->getCurrentFuelPrices(96)); ?></td>
+                            </tr>                          
+                        </tbody>                   
+                    </table>
+                <h3>Latest Offers</h3>
+                <div class="scrollable">
+                    <table class="list" id="offers">
+                        <thead>
+                            <tr>
+                                <td class="commodity">Commodity</td>                                
+                                <td class="retail">Quantity</td>
+                                <td class="wholesale">Telephone</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        	<?php 
+								$sresult = $location->getOpenSellOffers();
+								if(count($sresult) == 0){
+							?>
+                                <tr>
+                                    <td colspan="3">There are currently no offers in <?php echo $location->getName(); ?></td>
+                                </tr>
+                            <?php } else { 
+								foreach($sresult as $line){
+							?>
+                                <tr>
+                                    <td><?php echo $line['Commodity']; ?></td>
+                                    <td><?php echo $line['Quantity']; ?></td>
+                                    <td><?php echo $line['Telephone']; ?></td>
+                                </tr>
+                            <?php } } ?> 
+                        </tbody>                   
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

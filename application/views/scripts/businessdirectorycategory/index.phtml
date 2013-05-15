@@ -1,0 +1,94 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$businessdirectorycategory = new BusinessDirectoryCategory(); 
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("businessdirectorycategory_pagetitle_new"); 
+	$posturl = $this->baseUrl("businessdirectorycategory/create");
+	$button_title = $this->translate("businessdirectorycategory_button_new"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$businessdirectorycategory->populate(decode($request->id));
+		$title = sprintf($this->translate("businessdirectorycategory_pagetitle_edit"), $businessdirectorycategory->getName()); 
+		$button_title = $this->translate("businessdirectorycategory_button_edit");
+		$posturl = $this->baseUrl("businessdirectorycategory/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$businessdirectorycategory->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		$("#businessdirectorycategoryform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				name: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				name: "<?php echo $this->translate("businessdirectorycategory_name_error"); ?>"
+			}
+		});
+	}); 
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("businessdirectorycategory_page_info"); ?></div>
+<form id="businessdirectorycategoryform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("businessdirectorycategory_name_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="name" id="name" value="<?php echo $businessdirectorycategory->getName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("businessdirectorycategory_description_label"); ?>:</td>
+      <td><textarea class="expanding" id="description" name="description"><?php echo $businessdirectorycategory->getDescription(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("businessdirectorycategory_parent_label"); ?></td>
+      <td><?php
+       	$parentdropdown = new Zend_Form_Element_Select('parentid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getParentBusinessDirectoryCategoryValues($businessdirectorycategory->getID())),								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper')
+							)
+						);
+		$parentdropdown->setValue($businessdirectorycategory->getParentID()); 
+		echo $parentdropdown->render(); 
+      ?></td>
+    </tr>
+  </table>
+  <br />
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("businessdirectorycategory/list"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="BusinessDirectoryCategory" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($businessdirectorycategory->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,145 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$cropsector = new CropSectorInformation();
+	if (isApplicationLGMIS()) {
+		$cropsector->setLocationID($session->getVar('districtid')); 
+	}
+	$posturl = $this->baseUrl("cropsector/processcropsectorinfo");
+	$title = $this->translate("cropsector_input_pagetitle_new"); 
+	$button_title_save = $this->translate("cropsectorinfo_save_button_new"); 
+	
+	# Fetch Existing Price Details for the current submission.
+	# If updating, fetch all records for the passed quarter
+	if($request->locationid){
+		$cropsector->setLocationID(decode($request->locationid));
+		$button_title_save = $this->translate("cropsectorinfo_button_update"); 	
+	}	
+		$query = "SELECT cd.id AS `Commodity ID`,  c.id AS `Cropsector ID`, cd.`name` AS `Commodity`, c.creditsource AS `Source of Credit`, c.`diseases` AS `Diseases`, c.`pests` AS `Pests`, c.`seedsource` AS `Source of Seeds`, l.`id` AS `Location` FROM commodity AS cd 
+		Inner Join commoditypricecategory AS cp ON (cd.id = cp.commodityid)
+LEFT JOIN cropsectorinformation c ON(c.commodityid = cd.id)
+LEFT JOIN location l ON (c.locationid = l.id AND l.id = '".$cropsector->getLocationID()."') WHERE cp.pricecategoryid= '7' ORDER BY cd.`name`";
+
+	 
+	$conn = Doctrine_Manager::connection();  
+	$crops = $conn->fetchAll($query);
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		$("#cropsectorform").validate({		
+			
+		});
+			
+		// Copy buttons at the top to the bottom
+		$("td.bottombuttons").html($("td.topbuttons").html());
+		
+	}); 
+	
+</script>
+<style>
+textarea {
+	width: 146px; 
+} 
+
+#rightcolumn {
+	display: none; 
+} 
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.formtable {
+	width: 100%; 
+} 
+table.formtable tr.sectionheading {
+	background-repeat:repeat; 
+} 
+</style>
+<div class="pageinfo"><?php echo $this->translate("cropsector_input_create_info"); ?></div>
+<form id="cropsectorinfoform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td class="topbuttons"><a href="<?php echo $this->baseUrl("dashboard"); ?>" title="<?php echo $button_title_save; ?>">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction save" name="save"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title_save; ?></button></td>
+      </tr>
+    </tfoot>
+  </table>
+ <?php if (!isApplicationLGMIS()) {
+    		// hide the districtt for LGMIS users
+    ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("cropsector_input_location_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+       <td><?php
+      	$districtlist = new LookupType(); 
+      	$districtlist->setName("ALL_DISTRICTS");
+       	$districtdropdown = new Zend_Form_Element_Select('locationid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+		$districtdropdown->setValue($crops[0]['Location']); 
+		echo $districtdropdown->render(); 
+      ?></td>
+    </tr>
+    <?php } ?>
+  <table class="formtable commodities">
+    <thead>
+      <tr class="sectionheading">
+        <td align="left" style="width:200px;"><?php echo $this->translate("cropsector_commodity_label"); ?></td>
+        <td align="center"><?php echo $this->translate("cropsector_seedsource_label"); ?></td>
+        <td align="center"><?php echo $this->translate("cropsector_pests_label"); ?></td>
+        <td align="center"><?php echo $this->translate("cropsector_diseases_label"); ?></td>
+        <td align="center"><?php echo $this->translate("cropsector_creditsource_label"); ?></td>
+      </tr>
+    </thead>
+    <?php
+	    //declare a variable for the commodity id since it is read from different tables 
+		// depending on action being executed
+		$commoodityid = "";
+		$cropsectorinfoid = "";
+		$i = 0;		
+		foreach($crops as $crop){
+			// if action is create, blank out any prices preset from previous submission			
+  	?>
+    <tr>
+      <td align="left" class="label nowrapping">
+	  <?php echo $crop['Commodity'];?>
+        <input type="hidden" name="commodityid[]" value="<?php echo $crop['Commodity ID']; ?>" /></td>
+      <td align="center"><textarea name="seedsource[]"><?php echo $crop['Source of Seeds']; ?></textarea></td>
+      
+      <td align="center"><textarea name="pests[]"><?php echo $crop['Pests']; ?></textarea></td>
+      <td align="center"><textarea name="diseases[]"><?php echo $crop['Diseases']; ?></textarea></td>
+      <td align="center"><textarea name="creditsource[]"><?php echo $crop['Source of Credit']; ?></textarea>
+      <input type="hidden" name="id[]" value="<?php echo $crop['Cropsector ID']; ?>" /></td>
+    </tr>
+    <?php $i++;
+		}	
+	?>
+    <?php if (isApplicationLGMIS()) { ?>
+         	 <input type="hidden" id="locationid" name="locationid" value="<?php echo $cropsector->getLocationID(); ?>" />
+             
+    <?php } ?>
+           
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td class="bottombuttons"></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

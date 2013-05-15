@@ -1,0 +1,166 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$village = new Village(); 
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("village_pagetitle_new"); 
+	$posturl = $this->baseUrl("village/create");
+	$button_title = $this->translate("village_button_new"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$village->populate(decode($request->id));
+		$title = sprintf($this->translate("village_pagetitle_edit"), $village->getName()); 
+		$button_title = $this->translate("village_button_edit");
+		$posturl = $this->baseUrl("village/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$village->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		$("#villageform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				regionid: "required",
+				districtid: "required",
+				countyid: "required",
+				subcountyid: "required",
+				parishid: "required",
+				name: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				regionid: "<?php echo $this->translate("village_region_error"); ?>",
+				districtid: "<?php echo $this->translate("village_district_error"); ?>",
+				countyid: "<?php echo $this->translate("village_county_error"); ?>",
+				subcountyid: "<?php echo $this->translate("village_subcounty_error"); ?>",
+				parishid: "<?php echo $this->translate("village_parish_error"); ?>",
+				name: "<?php echo $this->translate("village_name_error"); ?>"
+			}
+		});
+
+		// chained select to load the districts for a region
+		$('#regionid').selectChain({
+		    target: $('#districtid'),
+		    url: '<?php echo $this->baseUrl('village/selectchain/'.SELECT_CHAIN_TYPE.'/region_districts/')?>',
+		    data: 'currentvalue=<?php echo $village->getDistrictID(); ?>',
+		    type: 'get'
+		});
+		$('#regionid').trigger("change");
+		
+		// chained select to load the counties for a district
+		$('#districtid').selectChain({
+		    target: $('#countyid'),
+		    url: '<?php echo $this->baseUrl('village/selectchain/'.SELECT_CHAIN_TYPE.'/district_counties/')?>',
+		    data: 'currentvalue=<?php echo $village->getCountyID(); ?>',
+		    type: 'get'
+		});
+		$('#districtid').trigger("change");
+		
+		// chained select to load the subcounties for a county
+		$('#countyid').selectChain({
+		    target: $('#subcountyid'),
+		    url: '<?php echo $this->baseUrl('village/selectchain/'.SELECT_CHAIN_TYPE.'/county_subcounties/')?>',
+		    data: 'currentvalue=<?php echo $village->getSubcountyID(); ?>',
+		    type: 'get'
+		});
+		$('#countyid').trigger("change");
+		
+		// chained select to load the subcounties for a county
+		$('#subcountyid').selectChain({
+		    target: $('#parishid'),
+		    url: '<?php echo $this->baseUrl('village/selectchain/'.SELECT_CHAIN_TYPE.'/subcounty_parishes/')?>',
+		    data: 'currentvalue=<?php echo $village->getParishID(); ?>',
+		    type: 'get'
+		});
+		$('#subcountyid').trigger("change");
+		
+	}); 
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("village_page_info"); ?></div>
+<form id="villageform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("village_region_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+      	$regionlist = new LookupType(); 
+      	$regionlist->setName("ALL_REGIONS");
+       	$regiondropdown = new Zend_Form_Element_Select('regionid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $regionlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper')
+							)
+						);
+		$regiondropdown->setValue($village->getRegionID()); 
+		echo $regiondropdown->render(); 
+      ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("village_district_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><select name="districtid" id="districtid">
+          <option value="">&lt;Select One&gt;</option>
+        </select></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("village_county_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><select name="countyid" id="countyid">
+          <option value="">&lt;Select One&gt;</option>
+        </select></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("village_subcounty_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><select name="subcountyid" id="subcountyid">
+          <option value="">&lt;Select One&gt;</option>
+        </select></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("village_parish_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><select name="parishid" id="parishid">
+          <option value="">&lt;Select One&gt;</option>
+        </select></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("village_name_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="name" id="name" value="<?php echo $village->getName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("village_description_label"); ?>:</td>
+      <td><textarea class="expanding" id="description" name="description"><?php echo $village->getDescription(); ?></textarea></td>
+    </tr>
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("dataentry"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Village" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($village->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

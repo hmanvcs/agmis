@@ -1,0 +1,300 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$pricesubmission = new CommodityPriceSubmission();
+	
+	$posturl = $this->baseUrl("retailprice/create");
+	$title = $this->translate("commodityprice_retail_pagetitle_new"); 
+	$button_title_save = $this->translate("commodityprice_save_button_new"); 
+	$button_title_submit = $this->translate("commodityprice_submit_button_new"); 
+	
+	// debugMessage($pricesubmission->getCollectedBy()->toArray());
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$pricesubmission->populate(decode($request->id));
+		$title = $this->translate("commodityprice_retail_pagetitle_edit"); 		
+		$posturl = $this->baseUrl("retailprice/edit"); 
+	} else {
+		# set default value of submitted by to the loggedin user
+		$pricesubmission->setCollectedByID($userid);
+		# set default collection date to todays date
+		$pricesubmission->setDateCollected(date($config->dateandtime->mediumformat));	
+	}
+	
+	# Fetch Existing Price Details for the current submission
+	$commodities = array();
+	$commodities = $pricesubmission->getCurrentPriceDetails(3);	
+	// debugMessage(count($commodities));
+	#in case of errors in session, populate the fields from session
+	
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$formvalues = $session->getVar(FORM_VALUES);		
+		$pricesubmission->processPost($formvalues);
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		
+		datepickerOpts.maxDate = new Date();   
+		$("#datecollected").datepicker(datepickerOpts); 
+
+		$("#priceform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				datecollected: "required",
+				collectedbyid: "required",
+				sourceid: "required",
+				comments: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				datecollected: "<?php echo $this->translate("commodityprice_datecollected_error"); ?>",
+				collectedbyid: "<?php echo $this->translate("commodityprice_collectedby_error"); ?>",
+				sourceid: "<?php echo $this->translate("commodityprice_source_error"); ?>",
+				comments: "<?php echo $this->translate("commodityprice_comments_error"); ?>"				
+			}
+		});
+		
+		// Replace every amount field having non numeric value with an empty string
+		var nullprice = "<?php echo $config->price->nullamountsymbol; ?>";
+		// alert(nullprice);		
+		$(".numberfield").each(function(){
+			if ($(this).val() == nullprice) {
+				$(this).val('');
+			}
+			
+		});
+			
+		// filter the categories and display only commodities of a certain category
+		$("#categoryid").change(function(){
+			// alert("value is "+this.value);
+			if(this.value == ""){
+				$("table.commodities tbody tr").show();
+			} else {
+				$("table.commodities tbody tr").not("."+this.value).hide();
+				$("table.commodities tbody tr."+this.value).show();
+			}
+		});
+		
+		// Copy buttons at the top to the bottom
+		$("td.bottombuttons").html($("td.topbuttons").html());
+		
+	}); 
+	// check that price is a valid number
+	function IsValidAmount(value){
+		var ValidChars = "0123456789";
+		var valid=true;
+		var Char;
+		
+		for (i = 0; i < value.length && valid == true; i++){ 
+			Char = value.charAt(i); 
+			if (ValidChars.indexOf(Char) == -1) {
+				valid = false;
+			}
+		}
+		return valid;
+	}
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("commodityprice_retail_create_info"); ?></div>
+<form id="priceform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td class="topbuttons"><a href="<?php echo $this->baseUrl("retailprice/list"); ?>" title="<?php echo $button_title_save; ?>">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction save" name="save"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title_save; ?></button></td>
+      </tr>
+    </tfoot>
+  </table>
+  <br />
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?>
+        <input type="hidden" name="entityname" value="CommodityPriceSubmission" />
+        <input type="hidden" name="status" id="status" value="Saved" />
+        <input type="hidden" id="id" name="id" value="<?php echo encode($pricesubmission->getID()); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_datecollected_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="datecollected" id="datecollected" class="datefield" value="<?php echo changemySQlDatetoPageFormat($pricesubmission->getDateCollected()); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_retail_location_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php 
+			$retailsource= new LookupType(); 
+			$retailsource->setName("ALL_RETAIL_SOURCES");
+			$retail = new Zend_Form_Element_Select('sourceid',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => 'Select One'), $retailsource->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array("filterselect", 'chzn-select')								
+								)
+							);
+			$retail->setValue($pricesubmission->getSourceID()); 
+			echo $retail->render(); 
+	   ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_collectedby_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <?php if ($acl->checkPermission('Retail Price', ACTION_APPROVE)) { ?>
+      <td><?php
+			$amia_user = new LookupType(); 
+			$amia_user->setName("ALL_AMIA_USERS");
+			$user = new Zend_Form_Element_Select('collectedbyid',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => 'Select One'), $amia_user->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array("filterselect", 'chzn-select')											
+								)
+							);
+			$user->setValue($pricesubmission->getCollectedByID()); 
+			echo $user->render(); 
+        ?></td>
+      <?php } else { ?>
+      <td><?php echo $pricesubmission->getCollectedBy()->getName(); ?>
+        <input type="hidden" name="collectedbyid" id="collectedbyid" value="<?php echo $pricesubmission->getCollectedByID(); ?>" /></td>
+      <?php } ?>
+    </tr>
+  </table>
+  <br />
+  <div class="commodityfilter_div">&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $this->translate("commodityprice_category_label"); ?>:
+    <?php
+		$commoditycategory_lookup = new LookupType(); 
+		$commoditycategory_lookup->setName("ALL_COMMODITY_CATEGORIES");
+		$cat = new Zend_Form_Element_Select('categoryid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => 'All Categories'), $commoditycategory_lookup->getOptionValuesFromQuery()),
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("commodityfilter", 'chzn-select'),
+								'title' => 'Filter Commodities by Category'									
+							)
+						);
+		$cat->setValue(""); 
+		echo $cat->render(); 
+	?>
+  </div>
+  <br />
+  <table class="formtable commodities">
+    <thead>
+      <tr class="sectionheading">
+        <td align="left" style="width:265px;"><?php echo $this->translate("commodityprice_commodity_label"); ?></td>
+        <td align="center"><?php echo $this->translate("commodityprice_units_label"); ?></td>
+        <td align="center"><?php echo $this->translate("commodityprice_retail_label"); ?></td>
+        <td align="center">Notes</td>
+      </tr>
+    </thead>
+    <?php
+		$i = 0;		
+		foreach($commodities as $commodity){
+			// debugMessage($commodity);
+			// if action is create, blank out any prices preset from previous submission			
+			if(isEmptyString($pricesubmission->getID())){
+				$commodity['wholesaleprice'] = "";
+				$commodity['retailprice'] = "";
+				$commodity['notes'] = "";
+			}
+  	?>
+    <tr class="<?php echo $commodity['categoryid']; ?>">
+      <td align="left" class="label"><?php echo $commodity['name']; ?>
+        <input type="hidden" name="submissiondetails[<?php echo $i; ?>][commodityid]" id="submissiondetails_<?php echo $i; ?>_commodityid"  value="<?php echo $commodity['id']; ?>" />
+        <input type="hidden" name="submissiondetails[<?php echo $i; ?>][pricecategoryid]" id="submissiondetails_<?php echo $i; ?>_pricecategoryid"  value="1" />
+        <input type="hidden" name="submissiondetails[<?php echo $i; ?>][categoryid]" id="submissiondetails_<?php echo $i; ?>_categoryid"  value="<?php echo $commodity['categoryid']; ?>" class="<?php echo $commodity['categoryid']; ?>" /></td>
+      <td align="center"><?php echo $commodity['units']; ?></td>
+      <td align="center"><input type="text" name="submissiondetails[<?php echo $i; ?>][retailprice]" id="submissiondetails_<?php echo $i; ?>_retailprice" class="numberfield valid_price_<?php echo $i; ?>" value="<?php echo $commodity['retailprice']; ?>" />
+        <script>
+			$(document).ready(function(){				
+				// Add validation rules for prices on each line
+				$.validator.addClassRules("valid_price_<?php echo $i; ?>", {
+					validate_price_<?php echo $i; ?>: true				
+				});
+			
+				// Validate the price amount
+				$.validator.addMethod("validate_price_<?php echo $i; ?>", function(value, element) {				
+					// only digits and numbers allowed
+					if(!IsValidAmount(value)){
+						return false;
+					}
+					return true;
+				}, "<?php echo $this->translate("commodityprice_price_invalid_error");?>");	
+				
+				$("#notes_<?php echo $i; ?>_trigger").click(function(){					
+					$("#dialog_<?php echo $i; ?>").dialog({
+						width: 500,
+						height: 200,
+						show: 'slide',						
+						modal: true,
+						title: $(this).attr('title'),						
+						buttons: [{text: "Ok", click: function() { $(this).dialog("close"); }}] 
+					});
+				});
+				
+				<?php if(isEmptyString($commodity['notes'])){ ?>
+					$("#hasnote_<?php echo $i; ?>").hide();
+					$("#nonote_<?php echo $i; ?>").show();	
+				<?php } else { ?>
+					$("#hasnote_<?php echo $i; ?>").show();
+					$("#nonote_<?php echo $i; ?>").hide();
+				<?php } ?>		
+				
+				$("#pricecomment_<?php echo $i; ?>").keyup(function(){
+					// alert("notes have changed");
+					$("#submissiondetails_<?php echo $i; ?>_notes").val($(this).val());
+					
+					if($("#submissiondetails_<?php echo $i; ?>_notes").val() == ''){ 
+						$("#hasnote_<?php echo $i; ?>").hide();
+						$("#nonote_<?php echo $i; ?>").show();	
+					} else {
+						$("#hasnote_<?php echo $i; ?>").show();
+						$("#nonote_<?php echo $i; ?>").hide();
+					}						
+				});	
+				
+				
+			});
+		</script></td>
+      <td align="center"><a href="javascript: doNothing();" class="notes" id="notes_<?php echo $i; ?>_trigger" title="Notes for <?php echo $commodity['name']; ?>"> <img id="nonote_<?php echo $i; ?>" class="hidden" src="<?php echo $this->baseUrl('images/notes.png'); ?>" /> <img id="hasnote_<?php echo $i; ?>" class="hidden" src="<?php echo $this->baseUrl('images/notes_plus.png'); ?>" /> </a>
+        <input type="hidden" name="submissiondetails[<?php echo $i; ?>][notes]" id="submissiondetails_<?php echo $i; ?>_notes" value="<?php echo $commodity['notes']; ?>" />
+        <div id="dialog_<?php echo $i; ?>" class="hidden" style="width:500px; height:250px;">
+          <textarea class="expanding" style="width:450px" name="pricecomment_<?php echo $i; ?>" id="pricecomment_<?php echo $i; ?>"><?php echo $commodity['notes']; ?></textarea>
+        </div></td>
+    </tr>
+    <?php $i++;
+		}	
+	?>
+  </table>
+  <br />
+  <table class="formtable">
+    <thead>
+      <tr class="sectionheading">
+        <td><?php echo $this->translate("commodityprice_comments_label"); ?>&nbsp;<?php echo $this->translate("required_field_marker"); ?></td>
+      </tr>
+    </thead>
+    <tr>
+      <td><textarea name="comments" id="comments" class="notesfield"><?php echo $pricesubmission->getComments(); ?></textarea></td>
+    </tr>
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td class="bottombuttons"></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,113 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+		
+	$title = $this->translate("dashboard_pagetitle");
+	$this->headTitle($title); 
+	
+	$conn = Doctrine_Manager::connection(); 
+	
+	$price_submision = $conn->fetchRow("SELECT SUM(IF(ps.status = 'Saved', 1, 0)) as forapproval, SUM(IF(YEARWEEK(ps.datecollected) = YEARWEEK(NOW()), 1, 0)) as thisweek, SUM(IF(DATE_FORMAT(ps.datecollected, '%Y%m') = DATE_FORMAT(NOW(), '%Y%m'), 1, 0)) as thismonth FROM commoditypricesubmission AS ps Inner Join pricesourcecategory AS pc ON (ps.sourceid = pc.pricesourceid AND pc.pricecategoryid = 2) Inner Join pricesource AS s ON (pc.pricesourceid = s.id)");
+	$fuel_submision = $conn->fetchRow("SELECT SUM(IF(ps.status = 'Saved', 1, 0)) as forapproval, SUM(IF(YEARWEEK(ps.datecollected) = YEARWEEK(NOW()), 1, 0)) as thisweek, SUM(IF(DATE_FORMAT(ps.datecollected, '%Y%m') = DATE_FORMAT(NOW(), '%Y%m'), 1, 0)) as thismonth FROM commoditypricesubmission AS ps Inner Join pricesourcecategory AS pc ON (ps.sourceid = pc.pricesourceid AND pc.pricecategoryid = 4) Inner Join pricesource AS s ON (pc.pricesourceid = s.id)");
+	$organic_submision = $conn->fetchRow("SELECT SUM(IF(ps.status = 'Saved', 1, 0)) as forapproval, SUM(IF(YEARWEEK(ps.datecollected) = YEARWEEK(NOW()), 1, 0)) as thisweek, SUM(IF(DATE_FORMAT(ps.datecollected, '%Y%m') = DATE_FORMAT(NOW(), '%Y%m'), 1, 0)) as thismonth FROM commoditypricesubmission AS ps Inner Join pricesourcecategory AS pc ON (ps.sourceid = pc.pricesourceid AND pc.pricecategoryid = 3) Inner Join pricesource AS s ON (pc.pricesourceid = s.id)");
+	$retail_submision = $conn->fetchRow("SELECT SUM(IF(ps.status = 'Saved', 1, 0)) as forapproval, SUM(IF(YEARWEEK(ps.datecollected) = YEARWEEK(NOW()), 1, 0)) as thisweek, SUM(IF(DATE_FORMAT(ps.datecollected, '%Y%m') = DATE_FORMAT(NOW(), '%Y%m'), 1, 0)) as thismonth FROM commoditypricesubmission AS ps Inner Join pricesourcecategory AS pc ON (ps.sourceid = pc.pricesourceid AND pc.pricecategoryid = 1) Inner Join pricesource AS s ON (pc.pricesourceid = s.id)");
+	
+	$business_directory = $conn->fetchRow("SELECT COUNT(id) AS total, SUM(IF(YEARWEEK(datecreated) = YEARWEEK(NOW()), 1, 0)) as thisweek, SUM(IF(DATE_FORMAT(datecreated,'%Y%m') = DATE_FORMAT(NOW(),'%Y%m'), 1, 0)) as thismonth FROM contact");
+	$sell_offer = $conn->fetchRow("SELECT SUM(IF(DAY(datecreated) = DAY(NOW()), 1, 0)) AS today, SUM(IF(YEARWEEK(expirydate) = YEARWEEK(NOW()), 1, 0)) as thisweek, SUM(IF(DATE_FORMAT(expirydate, '%Y%m') = DATE_FORMAT(NOW(), '%Y%m'), 1, 0)) as thismonth FROM offer WHERE offertype = 0");
+	$buy_offer = $conn->fetchRow("SELECT SUM(IF(DAY(datecreated) = DAY(NOW()), 1, 0)) AS today, SUM(IF(YEARWEEK(expirydate) = YEARWEEK(NOW()), 1, 0)) as thisweek, SUM(IF(DATE_FORMAT(expirydate, '%Y%m') = DATE_FORMAT(NOW(), '%Y%m'), 1, 0)) as thismonth FROM offer WHERE offertype = 1");
+	
+	// TODO: For values with zero, do not add a link 
+	function setNullPriceToZero($price){
+		return isEmptyString($price) ? 0 : $price;
+	}
+?>
+<script>
+$(document).ready(function(){
+	$("a.0").each(function(){
+		var cnt = $(this).contents()
+		$(this).replaceWith(cnt);
+	}); 
+	
+});
+</script>
+<h2><?php echo $title; ?></h2>
+<?php if ($acl->checkPermission('Market Price', ACTION_VIEW)) {?>
+	<div class="widget" id="pricesub-widget">
+	<h2><?php echo $this->translate('dashboard_pricesubmission_title'); ?></h2>
+	<ul>
+		<?php if ($acl->checkPermission('Market Price', ACTION_APPROVE)) {?>
+			<li><a class="<?php echo setNullPriceToZero($price_submision['forapproval']); ?>" href="<?php echo $this->baseUrl('marketprice/list/ps__status/Saved'); ?>"><div class="data"><?php echo setNullPriceToZero($price_submision['forapproval']); ?></div><?php echo $this->translate('dashboard_pricesubmission_forapproval'); ?></a></li>
+		<?php } ?>
+		<li><a class="<?php echo setNullPriceToZero($price_submision['thisweek']); ?>" href="<?php echo $this->baseUrl('marketprice/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($price_submision['thisweek']); ?></div><?php echo $this->translate('dashboard_pricesubmission_collected_this_week'); ?></a></li>
+		<li><a class="<?php echo setNullPriceToZero($price_submision['thismonth']); ?>" href="<?php echo $this->baseUrl('marketprice/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('first day this month')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('last day this month'))); ?>"><div class="data"><?php echo setNullPriceToZero($price_submision['thismonth']); ?></div><?php echo $this->translate('dashboard_pricesubmission_collected_this_month'); ?></a></li>
+	</ul>
+	</div>
+<?php } ?>
+<?php if ($acl->checkPermission('Offer', ACTION_VIEW)) {?>
+	<div class="widget" id="offersell-widget">
+		<h2><?php echo $this->translate('dashboard_offer_sell_title'); ?></h2>
+		<ul>
+			<li><a class="<?php echo setNullPriceToZero($sell_offer['today']); ?>" href="<?php echo $this->baseUrl('offer/list/o'.HTML_TABLE_COLUMN_SEPARATOR.'offertype/0/startdate/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($sell_offer['today']); ?></div><?php echo $this->translate('dashboard_label_new_this_week'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($sell_offer['thisweek']); ?>" href="<?php echo $this->baseUrl('offer/list/o'.HTML_TABLE_COLUMN_SEPARATOR.'offertype/0/expirestart/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/expireend/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($sell_offer['thisweek']); ?></div><?php echo $this->translate('dashboard_offer_expiring_this_week'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($sell_offer['thismonth']); ?>" href="<?php echo $this->baseUrl('offer/list/o'.HTML_TABLE_COLUMN_SEPARATOR.'offertype/0/expirestart/'.date($config->dateandtime->mediumformat, strtotime('first day this month')).'/expireend/'.date($config->dateandtime->mediumformat, strtotime('last day this month'))); ?>"><div class="data"><?php echo setNullPriceToZero($sell_offer['thismonth']); ?></div><?php echo $this->translate('dashboard_offer_expiring_this_month'); ?></a></li>
+		</ul>
+	</div>
+<?php } ?>
+<?php if ($acl->checkPermission('Fuel Price', ACTION_VIEW)) {?>
+	<div class="widget" id="pricesub-widget">
+		<h2><?php echo $this->translate('dashboard_fuelsubmission_title'); ?></h2>
+		<ul>
+			<?php if ($acl->checkPermission('Fuel Price', ACTION_APPROVE)) {?>
+				<li><a class="<?php echo setNullPriceToZero($fuel_submision['forapproval']); ?>" href="<?php echo $this->baseUrl('fuelprice/list/ps__status/Saved'); ?>"><div class="data"><?php echo setNullPriceToZero($fuel_submision['forapproval']); ?></div><?php echo $this->translate('dashboard_pricesubmission_forapproval'); ?></a></li>
+			<?php } ?>
+			<li><a class="<?php echo setNullPriceToZero($fuel_submision['thisweek']); ?>" href="<?php echo $this->baseUrl('fuelprice/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($fuel_submision['thisweek']); ?></div><?php echo $this->translate('dashboard_pricesubmission_collected_this_week'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($fuel_submision['thismonth']); ?>" href="<?php echo $this->baseUrl('fuelprice/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('first day this month')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('last day this month'))); ?>"><div class="data"><?php echo setNullPriceToZero($fuel_submision['thismonth']); ?></div><?php echo $this->translate('dashboard_pricesubmission_collected_this_month'); ?></a></li>
+		</ul>
+	</div>
+<?php } ?>
+<?php if ($acl->checkPermission('Offer', ACTION_VIEW)) {?>
+	<div class="widget" id="offerbuy-widget">
+		<h2><?php echo $this->translate('dashboard_offer_buy_title'); ?></h2>
+		<ul>
+			<li><a class="<?php echo setNullPriceToZero($buy_offer['today']); ?>" href="<?php echo $this->baseUrl('offer/list/o'.HTML_TABLE_COLUMN_SEPARATOR.'offertype/1/startdate/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($buy_offer['today']); ?></div><?php echo $this->translate('dashboard_label_new_this_week'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($buy_offer['thisweek']); ?>" href="<?php echo $this->baseUrl('offer/list/o'.HTML_TABLE_COLUMN_SEPARATOR.'offertype/1/expirestart/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/expireend/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($buy_offer['thisweek']); ?></div><?php echo $this->translate('dashboard_offer_expiring_this_week'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($buy_offer['thismonth']); ?>" href="<?php echo $this->baseUrl('offer/list/o'.HTML_TABLE_COLUMN_SEPARATOR.'offertype/1/expirestart/'.date($config->dateandtime->mediumformat, strtotime('first day this month')).'/expireend/'.date($config->dateandtime->mediumformat, strtotime('last day this month'))); ?>"><div class="data"><?php echo setNullPriceToZero($buy_offer['thismonth']); ?></div><?php echo $this->translate('dashboard_offer_expiring_this_month'); ?></a></li>
+		</ul>
+	</div>
+<?php } ?>
+<?php if ($acl->checkPermission('Organic Price', ACTION_VIEW)) {?>
+	<div class="widget" id="pricesub-widget">
+		<h2><?php echo $this->translate('dashboard_organicsubmission_title'); ?></h2>
+		<ul>
+			<?php if ($acl->checkPermission('Organic Price', ACTION_APPROVE)) {?>
+				<li><a class="<?php echo setNullPriceToZero($organic_submision['forapproval']); ?>" href="<?php echo $this->baseUrl('organicprice/list/ps__status/Saved'); ?>"><div class="data"><?php echo setNullPriceToZero($organic_submision['forapproval']); ?></div><?php echo $this->translate('dashboard_pricesubmission_forapproval'); ?></a></li>
+			<?php } ?>
+			<li><a class="<?php echo setNullPriceToZero($organic_submision['thisweek']); ?>" href="<?php echo $this->baseUrl('organicprice/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($organic_submision['thisweek']); ?></div><?php echo $this->translate('dashboard_pricesubmission_collected_this_week'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($organic_submision['thismonth']); ?>" href="<?php echo $this->baseUrl('organicprice/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('first day this month')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('last day this month'))); ?>"><div class="data"><?php echo setNullPriceToZero($organic_submision['thismonth']); ?></div><?php echo $this->translate('dashboard_pricesubmission_collected_this_month'); ?></a></li>
+		</ul>
+	</div>
+<?php } ?>
+<?php if ($acl->checkPermission('Contact', ACTION_VIEW)) {?>
+	<div class="widget" id="businessdirectory-widget">
+		<h2><?php echo $this->translate('dashboard_businessdirectory_title'); ?></h2>
+		<ul>
+			<li><a class="<?php echo setNullPriceToZero($business_directory['thisweek']); ?>" href="<?php echo $this->baseUrl('contact/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($business_directory['thisweek']); ?></div><?php echo $this->translate('dashboard_label_new_this_week'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($business_directory['thismonth']); ?>" href="<?php echo $this->baseUrl('contact/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('first day this month')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('last day this month'))); ?>"><div class="data"><?php echo setNullPriceToZero($business_directory['thismonth']); ?></div><?php echo $this->translate('dashboard_label_new_this_month'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($business_directory['total']); ?>" href="<?php echo $this->baseUrl('contact/list'); ?>"><div class="data"><?php echo setNullPriceToZero($business_directory['total']); ?></div><?php echo $this->translate('dashboard_businessdirectory_total'); ?></a></li>
+		</ul>
+	</div>
+<?php } ?>
+<?php if ($acl->checkPermission('Retail Price', ACTION_VIEW)) {?>
+	<div class="widget" id="pricesub-widget">
+		<h2><?php echo $this->translate('dashboard_retailsubmission_title'); ?></h2>
+		<ul>
+			<?php if ($acl->checkPermission('Retail Price', ACTION_APPROVE)) {?>
+				<li><a class="<?php echo setNullPriceToZero($retail_submision['forapproval']); ?>" href="<?php echo $this->baseUrl('retailprice/list/ps__status/Saved'); ?>"><div class="data"><?php echo setNullPriceToZero($retail_submision['forapproval']); ?></div><?php echo $this->translate('dashboard_pricesubmission_forapproval'); ?></a></li>
+			<?php } ?>
+			<li><a class="<?php echo setNullPriceToZero($retail_submision['thisweek']); ?>" href="<?php echo $this->baseUrl('retailprice/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('monday this week')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('sunday this week'))); ?>"><div class="data"><?php echo setNullPriceToZero($retail_submision['thisweek']); ?></div><?php echo $this->translate('dashboard_pricesubmission_collected_this_week'); ?></a></li>
+			<li><a class="<?php echo setNullPriceToZero($retail_submision['thismonth']); ?>" href="<?php echo $this->baseUrl('retailprice/list/startdate/'.date($config->dateandtime->mediumformat, strtotime('first day this month')).'/enddate/'.date($config->dateandtime->mediumformat, strtotime('last day this month'))); ?>"><div class="data"><?php echo setNullPriceToZero($retail_submision['thismonth']); ?></div><?php echo $this->translate('dashboard_pricesubmission_collected_this_month'); ?></a></li>
+		</ul>
+	</div>
+<?php } ?>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

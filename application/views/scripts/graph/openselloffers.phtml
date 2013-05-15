@@ -1,0 +1,48 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+		$all_results_query = "SELECT o.id as `id`, o.createdby as `createdby`, c.name as `Commodity`, 
+					 if(ISNULL(cu.name),o.quantity,concat(o.quantity,' ',cu.name)) as `Quantity`, 
+					 FORMAT(price,0) as `Price`, DATE_FORMAT(o.datecreated, '%b %d, %Y') as `Date Posted`, 
+					 DATE_FORMAT(o.expirydate, '%b %d, %Y') as `Expiry Date`, 
+					 o.contact as `Contact`, o.telephone as `Telephone`, 
+					 l.name as `District` FROM offer o INNER JOIN commodity c ON o.commodityid = c.id 
+					 LEFT JOIN commodityunit cu ON c.unitid = cu.id 
+					 INNER JOIN location l 
+					 WHERE o.locationid = l.id AND o.offertype = '1' AND TO_DAYS(NOW()) > TO_DAYS(o.expirydate)  
+					 ORDER BY o.expirydate DESC ";
+
+		// debugMessage($all_results_query);
+		$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($all_results_query);
+		$has_no_data = (count($result) == 0) ? true : false; 
+		if ($has_no_data) {
+			echo "There are no offers to sell commodities"; 
+		} else { 
+?>
+			<table class="list">
+		      <thead>
+		        <tr>
+		          <td>Commodity</td>
+		          <td>Quantity</td>
+		          <td>Telephone</td>
+		        </tr>
+		      </thead>
+		      <tbody>
+		        <?php 				  		
+		            	foreach($result as $line){							
+		            ?>
+		        <tr>
+		          <td><?php echo $line['Commodity']; ?></td>
+		          <td><?php echo $line['Quantity']; ?></td>
+		          <td><?php echo $line['Telephone']; ?></td>
+		        </tr>
+		        <?php 						
+		            	} // end processing results 
+		            ?>
+		      </tbody>
+		    </table>
+<?php
+		} // end check for commodity sell offers
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

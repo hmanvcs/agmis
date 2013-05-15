@@ -1,0 +1,194 @@
+ <?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$fishsummary = new FishCatchSummary();	
+	$fishsummary->populate(decode($request->id));
+	// debugMessage($fishsummary->toArray());
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("fishingsector_pagetitle_viewlanding"); 			
+	$this->headTitle($title);
+	
+?>
+<script>
+$(document).ready(function() {		
+	$(".delete").click(function(){
+		if(window.confirm("Are you sure you want to Delete this Landing Assessment? \n Click OK to confirm or Cancel to stay on this page.")){
+			return true;
+		} else {
+			return false;
+		}
+	}); 
+	
+}); 
+</script>
+<style>
+#rightcolumn {
+	display: none; 
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.formtable {
+	width:100%;
+}
+table.formtable td.label {
+	vertical-align:middle;
+}
+table.formtable tr.sectionheading {
+	background-repeat:repeat; 
+} 
+div.pageinfo {
+	width:99%;
+}
+table.formtable tbody#catchdetail tr td {
+	text-align:center;
+	padding-left:0;
+}
+tr.bolded td {
+	text-align:center;
+	font-weight:bold;
+}
+</style>
+<h2><?php echo $title; ?></h2>
+<div class="pageinfo"><?php echo $this->translate("fishingsector_landing_view_info"); ?></div>
+<table class="formtable">
+    <tfoot>
+        <tr>
+            <td class="topbuttons">
+				<?php if ($acl->checkPermission('Fishing Sector Information', ACTION_CREATE)) { ?>
+                	<a href="<?php echo $this->baseUrl('fishingsector'); ?>" class="positiveaction" title="<?php echo $this->translate("fishingsector_button_new"); ?>"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" /><?php echo $this->translate("fishingsector_button_new"); ?></a>&nbsp;&nbsp;
+                <?php } ?>				
+                <?php if ($acl->checkPermission('Fishing Sector Information', ACTION_DELETE)) { ?>          	
+          			<a href="<?php echo $this->baseUrl('fishingsector/delete/entityname/FishCatchSummary/id/'.encode($fishsummary->getID()).'/'.SUCCESS_MESSAGE.'/Landing Assessment has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("fishingsector/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("fishingsector_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("fishingsector_button_delete"); ?></a>&nbsp;&nbsp;
+        		<?php } ?>
+                <?php if ($acl->checkPermission('Fishing Sector Information', ACTION_EDIT)) { ?>					
+                    <a href="<?php echo $this->baseUrl('fishingsector/index/id/'.encode($fishsummary->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("fishingsector_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("fishingsector_button_edit"); ?></a>&nbsp;&nbsp;
+                <?php } ?>
+                <?php if ($acl->checkPermission('Fishing Sector Information', ACTION_LIST)) { ?>					
+                    <a href="<?php echo $this->baseUrl('fishingsector/list'); ?>" class="positiveaction" title="<?php echo $this->translate("fishingsector_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("fishingsector_button_list"); ?></a>&nbsp;&nbsp;
+                <?php } ?>
+            </td>
+        </tr>
+    </tfoot>
+</table>	
+<table class="formtable">
+    <tr class="sectionheading">
+        <td colspan="4"><?php echo $this->translate("fishingsector_section_summary"); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("fishingsector_waterbody_label"); ?>: </td>
+        <td><?php echo $fishsummary->getLandingSite()->getWaterBody()->getName(); ?></td>
+        <td class="label"><?php echo $this->translate("fishingsector_bmu_label"); ?>: </td>
+        <td></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("fishingsector_landingsite_label"); ?>: </td>
+        <td><?php echo $fishsummary->getLandingSite()->getName(); ?></td>
+        <td class="label"><?php echo $this->translate("fishingsector_district_label"); ?>: </td>
+        <td><?php echo $fishsummary->getLandingSite()->getDistrict()->getName(); ?></td>       
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("fishingsector_subcounty_label"); ?>: </td>
+        <td><?php echo $fishsummary->getLandingSite()->getName(); ?></td>
+        <td class="label"><?php echo $this->translate("fishingsector_parish_label"); ?>: </td>
+        <td><?php echo $fishsummary->getLandingSite()->getSubCounty()->getName(); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("fishingsector_daterecorded_label"); ?>: </td>
+        <td><?php echo changeMySQLDateToPageFormat($fishsummary->getDateRecorded()); ?></td>
+        <td class="label"><?php echo $this->translate("fishingsector_recordedby_label"); ?>: </td>
+        <td><?php echo $fishsummary->getRecordedBy()->getName(); ?></td>
+    </tr>
+</table>
+<div id="details_error"></div>
+<table class="formtable">
+    <tr class="sectionheading">
+        <td colspan="20"><?php echo $this->translate("fishingsector_section_detail"); ?></td>
+    </tr>
+    <tr class="bolded">
+        <td colspan="5"><?php echo $this->translate("fishingsector_fishingunit_column"); ?></td>
+        <td colspan="15"><?php echo $this->translate("fishingsector_fishingnoandweight_column"); ?></td>
+    </tr>
+    <tr class="bolded">
+        <td colspan="2"><?php echo $this->translate("fishingsector_boats_column"); ?></td>
+        <td colspan="3"><?php echo $this->translate("fishingsector_methods_column"); ?></td>
+        <td colspan="2"><?php echo $this->translate("fishingsector_mputa_column"); ?></td>
+        <td colspan="2"><?php echo $this->translate("fishingsector_ngege_column"); ?></td>
+        <td colspan="2"><?php echo $this->translate("fishingsector_mukene_column"); ?></td>
+        <td colspan="2"><?php echo $this->translate("fishingsector_mamba_column"); ?></td>
+        <td colspan="2"><?php echo $this->translate("fishingsector_male_column"); ?></td>
+        <td colspan="2"><?php echo $this->translate("fishingsector_othertilapia_column"); ?></td>
+        <td colspan="2"><?php echo $this->translate("fishingsector_other_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_total_column"); ?></td>
+    </tr>
+    <tr>
+        <td>#</td>
+        <td><?php echo $this->translate("fishingsector_type_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_type_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_hooksize_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+        <td><?php echo $this->translate("fishingsector_weighttitle_column"); ?></td>
+    </tr>    
+    <tbody id="catchdetail">
+    <?php 
+        $landingdetails = $fishsummary->getFishCatchDetails();
+        // debugMessage($landingdetails->toArray());
+        $count = 1;
+        foreach($landingdetails as $catchdetail){			
+    ?>        
+    <tr>
+        <td style="width:30px;"><?php echo $count; ?></td>
+        <td><?php echo $catchdetail->getBoat()->getType(); ?></td>
+        <td><?php echo $catchdetail->getNetType(); ?></td>
+        <td><?php echo $catchdetail->getHookSize(); ?></td>
+        <td><?php echo $catchdetail->getHookNo(); ?></td>
+        <td><?php echo $catchdetail->getMputaCount(); ?></td>
+        <td><?php echo $catchdetail->getMputaWeight(); ?></td>
+        <td><?php echo $catchdetail->getNgegeCount(); ?></td>
+        <td><?php echo $catchdetail->getNgegeWeight(); ?></td>
+        <td><?php echo $catchdetail->getMukeneCount(); ?></td>
+        <td><?php echo $catchdetail->getMukeneWeight(); ?></td>
+        <td><?php echo $catchdetail->getMambaCount(); ?></td>
+        <td><?php echo $catchdetail->getMambaWeight(); ?></td>
+        <td><?php echo $catchdetail->getMaleCount(); ?></td>
+        <td><?php echo $catchdetail->getMaleWeight(); ?></td>
+        <td><?php echo $catchdetail->getOtherTilapiaCount(); ?></td>
+        <td><?php echo $catchdetail->getOtherTilapiaWeight(); ?></td>
+        <td><?php echo $catchdetail->getOtherCount(); ?></td>
+        <td><?php echo $catchdetail->getOtherWeight(); ?></td>
+        <td><b><?php echo $catchdetail->getTotalWeight(); ?></b></td>
+    </tr>
+    <?php $count++;
+        }
+     ?>
+    </tbody>
+</table>
+<table class="formtable <?php echo $hide_on_print_class; ?> formactions">
+    <tfoot>
+      <tr>
+        <td class="bottombuttons"></td>
+      </tr>
+    </tfoot>
+</table>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

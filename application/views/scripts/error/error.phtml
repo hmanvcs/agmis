@@ -1,0 +1,10 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = "Application Error";
+	$this->headTitle($title); 
+?>
+<h2><?php echo $title; ?></h2>
+<?php 
+	echo $session->getVar(APPLICATION_ERROR_PAGE_MESSAGE); 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

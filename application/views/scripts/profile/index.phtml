@@ -1,0 +1,275 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$useraccount = new UserAccount(); 
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("useraccount_pagetitle_new"); 
+	$posturl = $this->baseUrl("profile/create");
+	$button_title = $this->translate("useraccount_button_save_label"); 
+	
+	if (!isEmptyString($request->id)) {
+		$useraccount->populate(decode($request->id));
+		$title = $this->translate("useraccount_pagetitle_edit"); 
+		$button_title = $this->translate("useraccount_button_edit_label");
+		$posturl = $this->baseUrl("profile/edit"); 
+	}
+	
+	$userupdatingownaccount = true; 
+	if($userid != $useraccount->getID()){
+		# admin user is view another profile
+		$userupdatingownaccount = false; 
+	} 
+	
+	$lookupaclgroups = new LookupType();
+	$lookupaclgroups->setName("ALL_ACL_GROUPS"); 
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$useraccount->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		$("#profileform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				firstname: "required",
+				lastname: "required",
+				marketid: "required",
+				email: {
+					"required": true, 
+					email: true
+				},
+				"usergroups_groupid[]": {
+					"required": true,
+					"minlength": 1
+				},
+				password: {
+					required: true				
+				},
+				confirmpassword: {
+					required: true,
+					equalTo: "#password"
+				}					
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				firstname: "<?php echo $this->translate("useraccount_firstname_error"); ?>",
+				lastname: "<?php echo $this->translate("useraccount_lastname_error"); ?>",
+				marketid: "<?php echo $this->translate("useraccount_market_error"); ?>",
+				email: {
+					"required": "<?php echo $this->translate("useraccount_email_error"); ?>", 
+					"email": "<?php echo $this->translate("useraccount_email_invalid_error"); ?>"
+				},	
+			 	"usergroups_groupid[]": "<?php echo $this->translate("useraccount_group_error");?>",
+				password: {
+					required: "<?php echo $this->translate("useraccount_password_error"); ?>"
+				}, 
+				confirmpassword: {
+					required: "<?php echo $this->translate("useraccount_confirmpassword_error"); ?>",
+					equalTo: "<?php echo $this->translate("useraccount_confirmpassword_error_equalto"); ?>"
+				}
+			},
+			// custom error message location
+			errorPlacement: function(error, element) {
+				if (element.attr("name") == "usergroups_groupid[]"){ 
+					error.appendTo("#usergroups_group_error");
+				} else { 
+					error.insertAfter(element);
+				}
+			}
+		});
+		
+		// enable and disable the selection of organization 
+		$("#applicationtype").change(function(){
+			if (this.value == "0") {
+				$("#organisationid").val("").attr('disabled', "disabled").trigger("liszt:updated");
+			} else {
+				$("#organisationid").removeAttr('disabled', false).trigger("liszt:updated");
+			} 
+		}); 
+		
+		// trigger a change on the application type
+		$("#applicationtype").trigger("change"); 
+				
+		// show/hide market location for amia users
+		toggleAmiaLocation();
+		// bind checkbox click
+		$("#usergroups_groupid-3").click(function(){			
+			toggleAmiaLocation();
+		});
+		
+		function toggleAmiaLocation(){
+			if($("#usergroups_groupid-3").attr('checked')){			
+				enableContainerByID("amia_location");
+			} else {				
+				disableContainerByID("amia_location");
+			}
+		}		
+	}); 
+</script>
+
+<h2><?php echo $title; ?></h2>
+<div class="pageinfo"><?php echo $this->translate("useraccount_page_info"); ?></div>
+<form id="profileform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $this->translate("useraccount_section_general"); ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_firstname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input name="firstname" id="firstname" type="text" value="<?php echo $useraccount->getFirstName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_lastname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input name="lastname" id="lastname" type="text" value="<?php echo $useraccount->getLastName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_othername_label"); ?>:</td>
+      <td><input name="othername" id="othername" type="text" value="<?php echo $useraccount->getOtherName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_phonenumber_label"); ?>:</td>
+      <td><input name="phonenumber" class="shortinput" id="phonenumber" type="text" value="<?php echo $useraccount->getPhoneNumber(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_email_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input name="email" id="email" type="text" value="<?php echo $useraccount->getEmail(); ?>" /></td>
+    </tr>
+    <?php if (isEmptyString($request->id)) {?>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input name="password" id="password" type="password" value="" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_password_confirm_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input name="confirmpassword" id="confirmpassword" type="password" value="" /></td>
+        </tr>  
+    <?php }else{ ?>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:</td>
+      <td><?php if(!$userupdatingownaccount){ ?>
+                <a href="<?php echo $this->baseUrl('profile/resetpassword'); ?>" title="Click here to reset user's Password">Reset Password</a>
+            <?php }else{ ?>
+                <a href="<?php echo $this->baseUrl('profile/changepassword'); ?>" title="Click here to change your Password">Change Password</a>&nbsp;
+            <?php } ?></td>    
+        </tr>
+    <?php } ?>
+    <?php if(!$userupdatingownaccount){ ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_applicationtype_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php 
+	  		$lookupapptype = new LookupType();
+			$lookupapptype->setName("APPLICATION_TYPE"); 	
+    		$apptypedropdown = new Zend_Form_Element_Select('applicationtype',
+    					array(
+							'multiOptions' => $lookupapptype->getOptionValuesAndDescription(), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper')
+						)
+    				);
+    		$apptypedropdown->setValue($useraccount->getApplicationType()); 
+    		echo $apptypedropdown->render();	
+		?></td>
+	</tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_organisation_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php 
+	  		$lookuporganisation = new LookupType();
+			$lookuporganisation->setName("ALL_LAMIS_ORGANISATIONS"); 	
+    		$organisationdropdown = new Zend_Form_Element_Select('organisationid',
+    					array(
+							'multiOptions' => array_merge_maintain_keys(array('' => 'Select Organisation'), $lookuporganisation->getOptionValuesFromQuery()), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper'),
+							'class' => array('chzn-select', "{required:true, messages: {required: '".$this->translate("useraccount_organisation_error")."'}}")
+						)
+    				);
+    		$organisationdropdown->setValue($useraccount->getOrganisationID()); 
+    		echo $organisationdropdown->render();	
+		?></td>
+	</tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_section_groups"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php 	
+    		$cb = new Zend_Form_Element_MultiCheckbox('usergroups_groupid',
+    					array(
+							'multiOptions' => $lookupaclgroups->getOptionValuesFromQuery(), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper')
+						)
+    				);
+    		$cb->setValue($useraccount->getGroupIDs()); 
+			$cb->setSeparator(' ');  
+    		echo $cb->render();	
+		?><br />
+      <div id="usergroups_group_error"></div></td>
+	</tr>
+	<tr>
+    	<td class="label"><?php echo $this->translate("useraccount_location_label"); ?>:</td>
+        <td><?php
+				$districtlookup= new LookupType(); 
+				$districtlookup->setName("ALL_DISTRICTS");
+				$districtdropdown = new Zend_Form_Element_Select('locationid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'Select District'), $districtlookup->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('filterselect', 'chzn-select')											
+									)
+								);
+				$districtdropdown->setValue($useraccount->getLocationID()); 
+				echo $districtdropdown->render(); 
+		?></td>
+	</tr>
+    <tr id="amia_location">
+      <td class="label"><?php echo $this->translate("useraccount_market_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+				$marketsource= new LookupType(); 
+				$marketsource->setName("ALL_MARKET_SOURCES");
+				$source = new Zend_Form_Element_Select('marketid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'Select Market'), $marketsource->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+										'decorators' => array('ViewHelper')											
+									)
+								);
+				$source->setValue($useraccount->getMarketID()); 
+				echo $source->render(); 
+		?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_isactive_label"); ?>: </td>
+      <td><input type="radio" name="isactive" id="r_yes" class="<?php echo $useraccount->getIsActive() == "Y" ? "Y" : "N" ; ?>" value="Y" />
+        &nbsp;<?php echo $this->translate("useraccount_isactiveyes_label"); ?>
+        <input type="radio" name="isactive" id="r_no" class="<?php echo $useraccount->getIsActive() == "N" ? "Y" : "N" ; ?>" value="N" />
+        &nbsp;<?php echo $this->translate("useraccount_isactiveno_label"); ?></td>
+    </tr>
+    <?php } ?>   
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->viewUrl(array("id" => encode($useraccount->getID()))); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" alt="<?php echo $button_title; ?>" />&nbsp;<?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="UserAccount" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($useraccount->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,162 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$organisation = new Organisation(); 
+	
+	// default title is to enable adding a new organisation
+	$title = $this->translate("organisation_pagetitle_new"); 
+	$posturl = $this->baseUrl("organisation/create");
+	$button_title = $this->translate("organisation_button_new"); 
+	
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$organisation->populate(decode($request->id));
+		$title = sprintf($this->translate("organisation_pagetitle_edit")); 
+		$button_title = $this->translate("organisation_button_edit");
+		$posturl = $this->baseUrl("organisation/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$organisation->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<style>
+.wideselect {
+	width: 260px; 
+} 
+</style>
+<script>
+	$(document).ready(function() {
+		
+		$("#organisationform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				name: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				name: "<?php echo $this->translate("organisation_name_error"); ?>"
+			}
+		});
+		
+		$(".file").change(function(){
+			// alert($(this).val());
+			$("#haslogo").val('1');
+		});
+
+	}); 
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("organisation_page_info"); ?></div>
+<form id="organisationform" action="<?php echo $posturl; ?>" method="post" enctype="multipart/form-data">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("organisation_name_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="name" id="name" value="<?php echo $organisation->getName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("organisation_abbreviation_label"); ?>:</td>
+      <td><input type="text" class="shorttextfield" name="abbreviation" id="abbreviation" value="<?php echo $organisation->getAbbreviation(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("organisation_parentid_label"); ?></td>
+      <td>
+	  	<?php
+			$organisation_lookup = new LookupType(); 
+			$organisation_lookup->setName("ALL_ORGANISATIONS");
+			
+			$organisation_dropdown = new Zend_Form_Element_Select('parentid',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => 'Select One'), $organisation_lookup->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array('wideselect', 'chzn-select')											
+								)
+							);
+			$organisation_dropdown->setValue($organisation->getParentID()); 
+			echo $organisation_dropdown->render(); 
+         ?>
+      </td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("organisation_address_label"); ?>:</td>
+      <td><textarea class="expanding" id="address" name="address"><?php echo $organisation->getAddress(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("organisation_logo_label"); ?>:</td>
+      <td><input class="file" type="file" name="logo" id="logo" /><br />
+      <label class="pagedescription">select an image file from your computer (Max 2M)</label>
+      </td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("organisation_phone_label"); ?>:</td>
+      <td><input type="text" name="phone" id="phone" value="<?php echo $organisation->getPhone(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("organisation_fax_label"); ?>:</td>
+      <td><input type="text" name="fax" id="fax" value="<?php echo $organisation->getFax(); ?>" /></td>
+    </tr>
+     <tr>
+      <td class="label"><?php echo $this->translate("organisation_email_label"); ?>:</td>
+      <td><input type="text" id="email" name="email" <?php echo $organisation->getEmail(); ?> /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("organisation_website_label"); ?>:</td>
+      <td><input type="text" id="website" name="website"<?php echo $organisation->getWebsite(); ?>></td>
+    </tr>
+    <tr>
+    	<td class="label"><?php echo $this->translate("organisation_districts_of_operation_label"); ?>: <?php echo $this->translate("required_field_marker"); ?>&nbsp; 
+    	</td>
+    	<td>
+    		<?php 
+					$districtlookup = new LookupType;
+					$districtlookup->setName("ALL_DISTRICTS"); 
+					$districtropdown = new Zend_Form_Element_Multiselect('districtid',
+						array(
+							'multiOptions' => $districtlookup->getOptionValuesFromQuery(),								
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper'),
+							'class' => array('wideselect', 'chzn-select', "{required:true, messages: {required: '".$this->translate("organisation_districtid_error")."'}}"),
+						)
+					);
+					$districtropdown->setValue($organisation -> getAllDistrictIDs()); 	
+					$districtropdown->setAttrib("data-placeholder", $this->translate("organisation_district_select_label"));
+					
+					echo $districtropdown->render();
+				?>
+    	</td>
+     </tr>
+  </table>
+  <br />
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("organisation/list"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Organisation" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($organisation->getID()); ?>" />          
+          <input type="hidden" id="haslogo" name="haslogo" value="" /></td>
+          <input type="hidden" id="<?php echo URL_FAILURE; ?>" name="<?php echo URL_FAILURE; ?>" value="<?php echo encode($this->baseUrl("organisation/index")); ?>" />
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

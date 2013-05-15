@@ -1,0 +1,120 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$locationdetail = new LocationDetail();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("locationdetail_pagetitle_new"); 
+	$posturl = $this->baseUrl("locationdetail/create");
+	$button_title = $this->translate("locationdetail_button_new"); 
+	
+	$locationid = $session->getVar('districtid'); 
+	if (!isEmptyString($request->id)) {
+		$locationid = decode($request->id);
+	}
+
+	// set load the offer if the id is available in the url 
+	if (!isEmptyString($locationid)) {
+		$locationdetail->populate($locationid);
+		$button_title = $this->translate("locationdetail_button_update"); 
+		$posturl = $this->baseUrl("locationdetail/edit");
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$locationdetail->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+
+?>
+<style>
+#offerform textarea {
+	width: 475px; 
+min-height: 256px; 
+}
+</style>
+
+<div class="pageinfo"><?php echo $this->translate("locationdetail_page_info"); ?></div>
+<form id="offerform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+   
+   <?php if (!isApplicationLGMIS()) {
+    		// hide the districtt for LGMIS users
+    ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("locationdetail_location_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+       <td><?php
+      	$districtlist = new LookupType(); 
+      	$districtlist->setName("ALL_DISTRICTS");
+       	$districtdropdown = new Zend_Form_Element_Select('locationid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+		$districtdropdown->setValue($locationdetail->getLocationID()); 
+		echo $districtdropdown->render(); 
+      ?></td>
+    </tr>
+    <?php } ?>
+   <tr>
+      <td class="label"><?php echo $this->translate("locationdetail_summary_label"); ?>:</td>
+      <td><textarea class="expanding" id="summary" name="summary"><?php echo $locationdetail->getSummary(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("locationdetail_agriculturalinputprices_label"); ?>:</td>
+      <td><textarea class="expanding" id="agriculturalinputprices" name="agriculturalinputprices"><?php echo $locationdetail->getAgriculturalInputPrices(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("locationdetail_businesssector_label"); ?>:</td>
+      <td><textarea class="expanding" id="businesssector" name="businesssector"><?php echo $locationdetail->getBusinessSector(); ?></textarea></td>
+    </tr> 
+    <tr>
+      <td class="label"><?php echo $this->translate("locationdetail_tourismsector_label"); ?>:</td>
+      <td><textarea class="expanding" id="tourismsector" name="tourismsector"><?php echo $locationdetail->getTourismSector(); ?></textarea></td>
+    </tr>
+     <tr>
+      <td class="label"><?php echo $this->translate("locationdetail_cropproduction_label"); ?>:</td>
+      <td><textarea class="expanding" id="cropproduction" name="cropproduction"><?php echo $locationdetail->getCropProduction(); ?></textarea></td>
+    </tr> 
+     <tr>
+      <td class="label"><?php echo $this->translate("locationdetail_livestockproduction_label"); ?>:</td>
+      <td><textarea class="expanding" id="livestockproduction" name="livestockproduction"><?php echo $locationdetail->getLivestockProduction(); ?></textarea></td>
+    </tr> 
+   <tr>
+      <td class="label"><?php echo $this->translate("locationdetail_handcraftsector_label"); ?>:</td>
+      <td><textarea class="expanding" id="handcraftsector" name="handcraftsector"><?php echo $locationdetail->getHandcraftSector(); ?></textarea></td>
+    </tr>
+    <tr>
+    	<td class="label"><?php echo $this->translate("locationdetail_fishproduction_label"); ?>:</td>
+    	<td><textarea class="expanding" id="fishproduction" name="fishproduction"><?php echo $locationdetail->getFishProduction(); ?></textarea></td>
+    </tr>    
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("dashboard"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="LocationDetail" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($locationdetail->getID()); ?>" />
+          </td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

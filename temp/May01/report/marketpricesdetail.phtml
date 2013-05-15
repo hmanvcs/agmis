@@ -1,0 +1,304 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("report_approved_marketpricesdetail_pagetitle");
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setFilterColumns(array("pd.commodityid","l.regionid","m.locationid","ps.sourceid","pc.pricecategoryid"));	
+	$paginate->setDefaultSortBy("ps.datecollected");	
+	$paginate->setDefaultSortOrder("DESC");
+	$paginate->setStartAndEndDateFilterColumn("ps.datecollected"); 
+	$paginate->setItemCountPerPage("ALL");
+	
+	$startdate = $request->startdate;
+	$enddate = $request->enddate;
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = 
+		"SELECT pd.id as priceid,
+		l.regionid as regionid,
+		r.name as Region,
+		m.locationid as districtid,
+		l.name as District,
+		ps.sourceid as marketid,
+		m.name as Market,
+		DATE_FORMAT(ps.datecollected, '".$config->dateandtime->mysqlmediumformat."') as `Date Collected`,
+		pd.commodityid,
+		c.name as Commodity,
+		pc.pricecategoryid as pricecategoryid,
+		pd.retailprice AS `Retail Price`,
+		pd.wholesaleprice AS `Wholesale Price`
+		FROM commoditypricedetails pd 
+		INNER JOIN commoditypricesubmission ps ON (pd.submissionid = ps.id)
+		INNER JOIN commodity as c on (pd.commodityid = c.id)
+		INNER JOIN pricesource m ON (ps.sourceid = m.id)
+		INNER JOIN location l ON (m.locationid = l.id)
+		INNER JOIN location r ON (l.regionid = r.id)
+		INNER JOIN pricesourcecategory as pc 
+		WHERE (ps.sourceid = pc.pricesourceid) ".$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+
+	$marketsource= new LookupType(); 
+	$marketsource->setName("ALL_MARKET_SOURCES");
+	$allmarkets = $marketsource->getOptionValuesFromQuery();	
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+/**/
+#listresults_div {
+	float: left;
+	width: 100%;
+	overflow:auto;
+	max-height:500px;	
+}
+#listresults_div h2 {
+	background: url("../images/report_header_bg.png");
+	background-repeat:repeat-x;
+	width:975px;	
+}
+table.list {
+	width:100%;
+}
+table.list thead td {
+		
+	background: url('<?php echo $this->baseUrl('images/report_header_bg.png'); ?>') repeat-x; 	
+}
+table.list thead tr td {
+	vertical-align:middle;
+	text-align:left;
+	height:32px !important;
+	height:28x;
+	color:#FFFFFF;	
+}
+table.list tbody {
+	
+}
+table.list tbody tr td {
+	border:solid 1px #CCCCCC;
+}
+label.error {	
+	display:inline;
+}
+</style>
+<script>
+$(document).ready(function(){
+	// change the date format since the short format with / corrupts the urls
+	datepickerOpts.dateFormat = '<?php echo $config->dateandtime->javascriptmediumformat; ?>'; 
+	$("#startdate, #enddate").datepicker(datepickerOpts); 
+	$("#pricereport").validate({
+		errorPlacement: function(error, element) {			
+			if(element.attr("name") == "startdate"){
+				error.appendTo("#startdateerror");
+			}
+			if(element.attr("name") == "enddate" ){
+				error.appendTo("#enddateerror");
+			}				
+		},
+		rules: {
+			startdate: "required",		
+			enddate: {
+				"required": true, 					
+				enddateafterstartdate: true
+			}				
+		}, 
+		// the messages for each of the fields being validated
+		messages: {				
+			startdate: "Select a Start Date",			
+			enddate: {
+				"required": "Select an End Date"
+			}
+		}
+	});	
+
+});
+</script>
+<?php if(isEmptyString($request->excel)) {	?>
+	<h2><?php echo $title; ?></h2>
+<?php } else { ?>
+	<?php 
+		if($request->startdate == $request->enddate){
+			$excltitle = "Market Prices Detailed Report: (".$request->startdate.")";
+		} else {
+			$excltitle = "Market Prices Detailed Report: (".$request->startdate." - ".$request->enddate.")";
+		}
+	?>
+	<h2><?php echo $excltitle; ?></h2>
+<?php } ?>
+<form action="<?php echo $this->baseUrl("report/marketpricesdetail"); ?>" method="get" id="pricereport">
+<?php if(isEmptyString($request->excel)) {	?>
+  <table class="reportfiltercontainer">
+    <tr>
+      <td><table class="reportfiltersection">
+          <tr>
+            <td class="label">Start:<span class="requiredmark">*</span>        
+            	<input name="startdate"  id="startdate" type="text"  class="datefield startdate autosubmitsearchform" value="<?php echo $startdate; ?>" /></td>
+            <td class="label">End:<span class="requiredmark">*</span>
+            	<input name="enddate" id="enddate" type="text" class="datefield autosubmitsearchform"  value="<?php echo $enddate; ?>" /></td>
+            <td><?php
+					$regionlist = new LookupType(); 
+					$regionlist->setName("ALL_REGIONS");
+					$regiondropdown = new Zend_Form_Element_Select('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Regions'), $regionlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('filterselect', 'chzn-select')
+										)
+									);
+					$regiondropdown->setValue($request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid')); 
+					echo $regiondropdown->render(); 
+				  ?></td>
+            <td><?php
+					$districtlist = new LookupType(); 
+					$districtlist->setName("ALL_DISTRICTS");
+					$districtdropdown = new Zend_Form_Element_Select('m'.HTML_TABLE_COLUMN_SEPARATOR.'locationid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Districts'), $districtlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('filterselect', 'chzn-select')
+										)
+									);
+					$districtdropdown->setValue($request->getParam('m'.HTML_TABLE_COLUMN_SEPARATOR.'districtid')); 
+					echo $districtdropdown->render(); 
+				  ?></td>    
+          </tr>
+          <tr>
+		  	<td><div id="startdateerror"></div></td>
+            <td><div id="enddateerror"></div></td>           
+            <td></td>           
+            <td></td>           
+          </tr>
+          <tr>
+		  	<td><?php
+					$marketsource= new LookupType(); 
+					$marketsource->setName("ALL_MARKET_SOURCES");
+					$markets = $marketsource->getOptionValuesFromQuery(); 
+					
+					$source = new Zend_Form_Element_Select('ps'.HTML_TABLE_COLUMN_SEPARATOR.'sourceid',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => 'All Markets'), $markets),								
+									'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array("filterselect", 'chzn-select'),
+									'title' => 'Filter Prices By Market'
+								)
+							);
+					$source->setValue($request->getParam('ps'.HTML_TABLE_COLUMN_SEPARATOR.'sourceid')); 
+					echo $source->render(); 
+						
+                ?></td>
+            <td><?php
+					$commoditylist = new LookupType(); 
+					$commoditylist->setName("ALL_COMMODITIES");
+					$commoditydropdown = new Zend_Form_Element_Select('pd'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Commodities'), $commoditylist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array("filterselect", 'chzn-select'),
+											'title' => 'Filter Prices By Commodity'		
+										)
+									);
+					$commoditydropdown->setValue($request->getParam('pd'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')); 
+					echo $commoditydropdown->render(); 
+				  ?></td>
+            <td></td>           
+            <td></td> 
+          </tr>
+        </table></td>
+      <td align="left"><table>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="generate" title="Click here to Generate Report"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Generate Report</button>
+             <input type="hidden" name="generate" value="true" /></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php } ?>
+</form>
+<?php if (isEmptyString($request->generate)) { ?>
+	Please select some options to filter the existing data
+<?php  } else { 
+		// debugMessage($all_results_query);
+		$paginate->setItemCountFromSQLQuery($all_results_query);
+		
+		$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+		# echo $current_results_query;
+		$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+		$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+		# the query string to be appended to the return to list URL
+		$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+		
+	  	$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($current_results_query);
+	
+		$has_no_data = (count($result) == 0) ? true : false; 
+		
+		# This variable stores the number of redundant columns returned in the query so that when we are printing
+		# we are able to know how many columns to ignore. This variable is sent in the print URL
+		$number_of_redundant_columns = 3;
+		
+		# the columns which contain numbers in the invoice query
+		# Please note that the column count begins at 0
+		$export_number_column_list = "";
+
+		// show a message that there are no items to display
+		if ($has_no_data) {
+			$this->headTitle("No Data for this Report"); 
+	?>
+  <div class="norecords"><label class="error"><?php echo $this->translate("report_global_norecords_label"); ?></label></div>
+  <?php } else { ?>
+  <?php if(isEmptyString($request->excel)) {	?>      
+      <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->url(array_merge_maintain_keys(array(PAGE_CONTENTS_ONLY => 'true', EXPORT_TO_EXCEL => 'true'), $request->getQuery())); ?>"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <div id="listresults_div">
+    <table class="list">
+        <thead>           
+            <tr>        
+                <td>Date</td>        
+                <td>Region</td>
+                <td>District </td>
+                <td>Market</td>
+                <td>Commodity </td>
+                <td>Wholesale Price</td>
+                <td>Retail Price</td>
+            </tr>      	
+        </thead>
+        <tbody>
+			<?php 				  		
+            	foreach($result as $line){							
+            ?>
+            <tr>        
+                <td align="center"><?php echo $line['Date Collected']; ?></td>        
+                <td><?php echo $line['Region']; ?></td>
+                <td><?php echo $line['District']; ?></td>
+                <td><?php echo $line['Market']; ?></td>        
+                <td width="25%"><?php echo $line['Commodity']; ?></td>
+                <td align="right"><?php echo $line['Wholesale Price']; ?></td>
+                <td align="right"><?php echo $line['Retail Price']; ?></td>
+            </tr> 
+			<?php 						
+                } // end processing results 
+            ?>
+        </tbody>
+    </table>
+  </div>
+  <?php			
+	 } // end check that there are results 
+   } // end check for generate action
+  ?>
+
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

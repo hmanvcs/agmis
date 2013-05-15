@@ -1,0 +1,156 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$livestockector = new LivestockInformation();
+	if (isApplicationLGMIS()) {
+		$livestockector->setLocationID($session->getVar('districtid')); 
+	}
+	$posturl = $this->baseUrl("livestocksector/processlivestockinfo");
+	$title = $this->translate("livestocksector_input_pagetitle_new"); 
+	$button_title_save = $this->translate("livestockinfo_button_new");  
+	
+	# Fetch Existing Price Details for the current submission.
+	# If updating, fetch all records for the passed quarter
+	if($request->locationid){
+		$button_title_save = $this->translate("livestockinfo_button_update"); 	
+		$livestockector->setLocationID(decode($request->locationid));			
+	} 	
+		$query = "SELECT cd.id AS `Commodity ID`,  ls.id AS `livestocksectorid`, cd.`name` AS `Commodity`, ls.breedsource AS `Source of Breeds`, ls.pests AS `Pests`, ls.diseases AS `Diseases`, ls.creditsource AS `Source of Credit`, l.`id` AS `Location` FROM commodity AS cd
+		Inner Join commoditypricecategory AS cp ON (cd.id = cp.commodityid)
+		LEFT JOIN livestockinformation ls ON(ls.commodityid = cd.id) LEFT JOIN location l ON (ls.locationid = l.id AND l.id = '".$livestockector->getLocationID()."') WHERE cp.pricecategoryid= '8' ORDER BY cd.`name`";
+	
+	$conn = Doctrine_Manager::connection();  
+	$livestock = $conn->fetchAll($query);
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		
+		$("#livestocksectorform").validate({		
+			
+		});
+			
+		// Copy buttons at the top to the bottom
+		$("td.bottombuttons").html($("td.topbuttons").html());
+		
+	}); 
+	
+</script>
+<style>
+textarea {
+	width: 146px; 
+} 
+
+#rightcolumn {
+	display: none; 
+} 
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.formtable {
+	width: 100%; 
+} 
+table.formtable tr.sectionheading {
+	background-repeat:repeat; 
+} 
+</style>
+<div class="pageinfo"><?php echo $this->translate("livestocksector_input_create_info"); ?></div>
+<form id="livestocksectorinfoform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td class="topbuttons"><a href="<?php echo $this->baseUrl("dashboard"); ?>" title="<?php echo $button_title_save; ?>">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction save" name="save"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title_save; ?></button></td>
+      </tr>
+    </tfoot>
+  </table>
+  <br />
+  <table class="formtable">
+   
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+        
+    <?php if (!isApplicationLGMIS()) {
+    		// hide the districtt for LGMIS users
+    ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("livestocksector_input_location_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+       <td><?php
+      	$districtlist = new LookupType(); 
+      	$districtlist->setName("ALL_DISTRICTS");
+       	$districtdropdown = new Zend_Form_Element_Select('locationid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+		$districtdropdown->setValue($livestock[0]['Location']); 
+		echo $districtdropdown->render(); 
+      ?></td>
+    </tr>
+    
+    <?php } ?>
+  </table>
+  <br />
+  <table class="formtable commodities">
+    <thead>
+      <tr class="sectionheading">
+        <td align="left" style="width:200px;"><?php echo $this->translate("livestocksector_commodity_label"); ?></td>
+        <td align="center"><?php echo $this->translate("livestocksector_breedsource_label"); ?></td>
+        <td align="center"><?php echo $this->translate("livestocksector_pests_label"); ?></td>
+        <td align="center"><?php echo $this->translate("livestocksector_diseases_label"); ?></td>
+        <td align="center"><?php echo $this->translate("livestocksector_creditsource_label"); ?></td>
+      </tr>
+    </thead>
+    <?php
+	    //declare a variable for the commodity id since it is read from different tables 
+		// depending on action being executed
+		
+		$i = 0;		
+		foreach($livestock as $stock){
+			// if action is create, blank out any prices preset from previous submission			
+  	?>
+    <tr>
+      <td align="left" class="label nowrapping">
+	  <?php echo $stock['Commodity']; ?>
+      </td>
+        <input type="hidden" name="commodityid[]" value="<?php echo $stock['Commodity ID']; ?>" />
+      <td align="center"><textarea name="breedsource[]"><?php echo $stock['Source of Breeds']; ?></textarea></td>
+      <td align="center"><textarea name="pests[]"><?php echo $stock['Pests']; ?></textarea></td>
+      <td align="center"><textarea name="diseases[]"><?php echo $stock['Diseases']; ?></textarea></td>
+      <td align="center"><textarea name="creditsource[]"><?php echo $stock['Source of Credit']; ?></textarea>
+      <input type="hidden" name="id[]" value="<?php echo $stock['livestocksectorid']; ?>" /></td>
+    </tr>
+    <?php $i++;
+		}	
+	?>
+    <?php if (isApplicationLGMIS()) { ?>
+         	 <input type="hidden" id="locationid" name="locationid" value="<?php echo $livestockector->getLocationID(); ?>" />
+                         
+           <?php } ?>
+           
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td class="bottombuttons"></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,209 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("lgmis_businesssector_pagetitle");
+	$this->headTitle($title);
+	
+	$location = new District();
+	$location->populate($request->id);
+	
+	$request->setParam('locationid', $request->id); 
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("c.firstname", "c.firstname", "c.othernames", "c.orgname", "c.phone", "c.address"));
+	$paginate->setFilterColumns(array("cc.categoryid","c.contacttype", "locationid"));
+	$paginate->setDefaultSortBy("c.firstname");	
+
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT c.id, c.contacttype, c.orgname as `Name`, c.phone as `Phone`, c.phone2 as `Alt Phone`, email as `Email`, address as `Address`, goodsorservicesoffered, GROUP_CONCAT(bdc.name) as categories FROM contact c
+			INNER JOIN contactcategory cc ON (c.id = cc.contactid)
+			INNER JOIN businessdirectorycategory bdc 
+			WHERE cc.categoryid = bdc.id ".$paginate->getSearchAndFilterSQL()." GROUP BY c.id ".$paginate->getSortSQL();
+	
+	// debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	// echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$businessresult = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($businessresult) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 2;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+#lgmis td {
+	vertical-align: top; 
+} 
+#lgmis table.list ul li {
+    float: left;
+    margin-bottom: 10px;
+	margin-right: 25px; 
+}
+.alphabetlist{
+	text-align: left;
+}
+#lgmis table td h2 {
+    background: url("<?php echo $this->baseUrl('images/contactlist_bg.png'); ?>") no-repeat scroll 0 0 transparent;
+    border: medium none;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: bold;
+    height: 30px;
+    margin: 0;
+    padding: 5px 0 0 5px;
+}
+
+</style>
+<div id="lgmis">
+<?php require_once APPLICATION_PATH.'/views/scripts/lgmis/menu.phtml'; ?>
+<h1 class="pagetitle"><?php echo $title; ?></h1>
+<h2><?php echo $this->translate('lgmis_sector_overview'); ?></h2>
+<?php echo $location->getLocationDetail()->getBusinessSector(); ?>
+<h2><?php echo $this->translate('lgmis_sector_information'); ?></h2>
+<form action="<?php echo $this->baseUrl("lgmis/businesssectorsearch"); ?>" method="get" id="usersform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td colspan="2"><?php
+				$contacttype = new LookupType();
+				$contacttype->setName("ALL_CONTACT_TYPES");				
+				$type = new Zend_Form_Element_Select('c'.HTML_TABLE_COLUMN_SEPARATOR.'contacttype',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => 'All Types'), $contacttype->getOptionValuesAndDescription()),								
+									'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array("filterselect", 'chzn-select'),
+									'title' => 'Filter Contacts By Type'
+								)
+							);
+				$type->setValue($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'contacttype')); 				
+				echo $type->render(); 
+			  ?>
+              &nbsp;&nbsp;
+              <?php
+				# lookup for business categories
+				$categorylookup = new LookupType();
+				$categorylookup->setName("ALL_BUSINESS_DIRECTORY_CATEGORIES");
+				
+				$cat = new Zend_Form_Element_Select('cc'.HTML_TABLE_COLUMN_SEPARATOR.'categoryid',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => 'All Categories'), $categorylookup->getOptionValuesFromQuery()),								
+									'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array("filterselect", 'chzn-select'),
+									'title' => 'Filter Contacts By Category'
+								)
+							);
+				$cat->setValue($request->getParam('cc'.HTML_TABLE_COLUMN_SEPARATOR.'categoryid')); 				
+				echo $cat->render(); 
+			  ?></td>
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input type="hidden" name="id" value="<?php echo $request->id; ?>"  /><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="Enter your search term here and click search" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="Click here to Search or Filter"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Search</button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("contact_list_norecords"); ?></label>
+  <?php } else { ?>
+  <div class="alphabetlist"><a href="#" title="View all the Contacts">All</a>&nbsp;&nbsp;|&nbsp;&nbsp;<?php echo $paginate->getAlphabetString(); ?></div>
+  <div id="counter"><?php echo sprintf($this->translate("contact_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+    
+  <?php if ($acl->checkPermission('Contact', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <table style="width:900px;">
+          <?php
+          	$count = 0;  
+          	foreach($businessresult as $line) { 
+          		if ($count % 2 == 0) {
+          			echo "<tr>"; 
+          		} 
+		  ?>
+		            <td vertical-align="top">
+		            	<h2><?php echo $line['Name']; ?></h2>
+				            <table class="list" style="width: 340px; ">
+				              <tbody>
+				                <tr>
+				                  <td><b>Phone:</b></td>
+				                  <td width="99%"><?php echo $line['Phone']; ?></td>
+				                </tr>
+				                <tr>
+				                  <td><b>Address:</b></td>
+				                  <td class="nowrapping"><?php echo nl2br($line['Address']); ?></b></td>
+				                </tr>
+				                <tr>
+				                  <td><b>Categories:</b></td>
+				                  <td class="nowrapping"><?php echo createHTMLListFromArray(explode(',', $line['categories'])); ?></b></td>
+				                </tr>
+				                <tr>
+				                    <td><b>Goods or <br>Servies Offered:</b></td>
+				                    <td class="nowrapping"><?php echo $line['goodsorservicesoffered']; ?></td>
+				                </tr>
+				              </tbody>
+				            </table>
+		            </td>
+          	<?php 
+		          // do not close for the first row
+		          if ($count % 2 == 1) {
+		          	echo "</tr>";
+		          }
+	          // increment the counter
+	          $count++;
+          } // end processing results
+          // if the last record is odd then add a blank row
+          // and close the row
+          if ($count % 2 == 1) {
+          	echo "<td></td></tr>";
+          } 
+          ?>
+  </table>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+</div>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

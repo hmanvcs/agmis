@@ -1,0 +1,158 @@
+<?php 
+
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$landingsite = new LandingSite();
+	
+	//default title is to add new landing site
+	$title = $this->translate("landingsite_pagetitle_new");
+	$posturl = $this->baseUrl("landingsite/create");
+	$button_title = $this->translate("landingsite_button_new");
+	
+	$districtid = $session->getVar('districtid'); 
+
+	//set the landing site if provided in the url
+	if (!isEmptyString($request->id)) {
+		$landingsite->populate(decode($request->id));
+		$title = sprintf($this->translate("landingsite_pagetitle_edit"), $landingsite->getName()); 
+		$button_title = $this->translate("landingsite_button_edit");
+		$posturl = $this->baseUrl("landingsite/edit"); 
+	}
+	#in case of errors in session, populate fields in session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){
+		$landingsite->processPost($session->getVar(FORM_VALUES));
+	}
+	$this->headTitle($title);
+?>
+<script>
+	$(document).ready(function(){
+		$("#landingsiteform").validate({
+			//define the validation rules one field at a time
+			rules: {
+				name: "required",
+				waterbodyid: "required",
+				districtid: "required",
+				subcountyid: "required",
+				parishid: "required"
+			},
+			//the messages for each of the fields being validated
+			messages: {
+				name: "<?php echo $this->translate("landingsite_name_error"); ?>",
+				waterbodyid: "<?php echo $this->translate("landingsite_waterbodyid_error"); ?>",
+				districtid: "<?php echo $this->translate("landingsite_districtid_error"); ?>",
+				subcountyid: "<?php echo $this->translate("landingsite_subcountyid_error"); ?>",
+				parishid: "<?php echo $this->translate("landingsite_parishid_error"); ?>"
+			}
+		});
+	});
+</script>
+<div class="pageinfo"><?php echo $this->translate("landingsite_page_info"); ?></div>
+<form id="landingsiteform" action="<?php echo $posturl; ?>" method="post">
+	<table class="formtable">
+		<tr class="sectionheading">
+	      <td colspan="2"><?php echo $title; ?></td>
+	    </tr>
+	    <?php if ($sessionhaserror) { ?>
+	    <tr>
+	      <td class="label">&nbsp;</td>
+	      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+	    </tr>
+	    <?php } ?>
+	    <tr>
+	      <td class="label">&nbsp;</td>
+	      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+	    </tr>
+	    <tr>
+	      <td class="label"><?php echo $this->translate("landingsite_name_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+	      <td><input type="text" name="name" id="name" value="<?php echo $landingsite->getName(); ?>" /></td>
+   		</tr>
+   		<tr>
+	      <td class="label"><?php echo $this->translate("landingsite_description_label"); ?>:</td>
+	      <td><textarea class="expanding" id="description" name="description"><?php echo $landingsite->getDescription(); ?></textarea></td>
+   		</tr>
+   		<tr>
+	      <td class="label"><?php echo $this->translate("landingsite_waterbodyid_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+	       <td><?php 	
+					$waterbody = new Zend_Form_Element_Select('waterbodyid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getWaterBodies()),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array("filterselect", 'chzn-select')
+									)
+								);
+					
+					$waterbody->setValue($landingsite->getWaterBodyID());				
+					echo $waterbody->render();	
+			?><div id="waterbodyid_error"></div></td>
+    	</tr>    
+    	<?php if (!isApplicationLGMIS()) {?>
+	    <tr>
+	      <td class="label"><?php echo $this->translate("landingsite_districtid_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+	       <td><?php
+					$districtlist = new LookupType(); 
+					$districtlist->setName("ALL_DISTRICTS");
+					$districtdropdown = new Zend_Form_Element_Select('districtid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+											'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array("filterselect", 'chzn-select'),
+										)
+									);
+					$districtdropdown->setValue($landingsite->getDistrictID()); 
+					echo $districtdropdown->render(); 
+	      ?><div id="districtid_error"></div></td>
+    	</tr>
+    	<?php } ?>
+    	<tr>
+	      <td class="label"><?php echo $this->translate("landingsite_subcountyid_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+	       <td><?php
+				$subcountydropdown = new Zend_Form_Element_Select('subcountyid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getSubcountiesInDistrict($districtid)),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array("filterselect", 'chzn-select'),
+									)
+								);
+				$subcountydropdown->setValue($landingsite->getSubcountyID()); 
+				echo $subcountydropdown->render(); 
+	      ?><div id="subcountyid_error"></div></td>
+    	</tr>
+    	<tr>
+	      <td class="label"><?php echo $this->translate("landingsite_parishid_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+	       <td><?php
+				$parishdropdown = new Zend_Form_Element_Select('parishid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getParishesInDistrict($districtid)),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array("filterselect", 'chzn-select'),
+									)
+								);
+				$parishdropdown->setValue($landingsite->getParishID()); 
+				echo $parishdropdown->render(); 
+	      ?><div id="parishid_error"></div></td>
+    	</tr>  
+	 </table>
+	  <table class="formtable">
+		<tfoot>
+	      <tr>
+	        <td><a href="<?php echo $this->baseUrl("landingsite/list"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+	          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+	          <input type="hidden" name="entityname" value="LandingSite" />
+	          <input type="hidden" id="id" name="id" value="<?php echo encode($landingsite->getID()); ?>" />
+	          <?php if (isApplicationLGMIS()) {?>
+	              <input type="hidden" id="districtid" name="districtid" value="<?php echo $districtid; ?>" />
+	          <?php } ?>
+	          </td>
+	      </tr>
+    	</tfoot>
+	  </table>
+	</form>
+<?php 
+
+	require_once APPLICATION_PATH.'/includes/footer.php';
+
+?>

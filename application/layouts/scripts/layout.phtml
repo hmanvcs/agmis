@@ -1,0 +1,229 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<?php
+   require_once APPLICATION_PATH.'/includes/commonfunctions.php';
+   $request = Zend_Controller_Front::getInstance()->getRequest();
+?>
+<html lang="en">
+<head>
+<?php echo $this->headTitle(); ?>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<?php if ($request->getControllerName() == "lgmis") { ?>
+    <link href="<?php echo $this->baseUrl('lgmip.ico'); ?>" rel="shortcut icon" type="image/x-icon" />
+<?php } else { ?>
+    <link href="<?php echo $this->baseUrl('favicon.ico'); ?>" rel="shortcut icon" type="image/x-icon" />
+<?php } ?> 
+<?php
+  
+  $isloggedin = false; 
+  $userid = ""; 
+  $session = SessionWrapper::getInstance();
+  
+  if (!isEmptyString($session->getVar("userid"))) {
+  	$isloggedin = true; 
+  	$userid = $session->getVar("userid");  
+  	
+  	$acl = getACLInstance(); 
+  }
+  $jsfiles = glob("javascript/*.js");
+  $cssfiles = glob("stylesheets/*.css");
+  
+  foreach ($cssfiles as $css) {
+	// use baseURL() to output the full URL of the cached file and use it as normal with headLink()
+	$this->minifyHeadLink()->appendStylesheet($css);
+  } 
+  echo $this->minifyHeadLink(); 
+  
+  foreach ($jsfiles as $js) {
+	// use baseURL() to output the full URL of the cached file and use it as normal with headLink()
+	// also use setFile so that each file is added
+	$this->minifyHeadScript()->appendFile($js);
+  }  
+  echo $this->minifyHeadScript(); 
+  $config = Zend_Registry::get("config"); 
+  
+?>
+<script type="text/javascript">
+//the date picker options
+var datepickerOpts = {
+		showOn: 'both', 
+		buttonImage: '<?php echo $this->baseUrl('images/calendar.png'); ?>', 
+		buttonImageOnly: true,
+		changeMonth: true,
+		changeYear: true,
+		minDate: '-<?php echo $config->dateandtime->mindate; ?>Y',
+		maxDate: '+<?php echo $config->dateandtime->maxdate; ?>Y',
+		dateFormat: '<?php echo $config->dateandtime->javascriptmediumformat; ?>',
+		hideIfNoPrevNext: true,
+		showButtonPanel: true, 
+		currentText: 'Now'		
+	}; 
+var dialogOpts = {
+		width: 400,
+		height: 300,
+		resizable: false,
+		modal: true,
+		autoOpen: false
+	};
+$(document).ready(function() {
+	// set the rows of a table to have alternating colors
+	$("table.list tbody tr:odd").addClass("odd");
+	
+	// make the datefields readonly
+	$(".datefield, .disabledfield").attr('readOnly', 'true');
+
+	// validate date fields whenever they change
+	$(".datefield").change(function(){
+		$("form").validate().element(this);
+	});
+	
+	// set the title of the list table headers to the contents
+	$("table.list thead a")
+		.each(function(n) {
+			// get the contents of each 
+			this.title = "Click to sort by " + this.innerHTML;
+	}); 
+	// yes/no images 
+	$("span.Y, span.1").html('<img src="<?php echo $this->baseUrl("images/tick.png"); ?>"/>'); 
+	$("span.N, span.0").html('<img src="<?php echo $this->baseUrl("images/cross.png"); ?>"/>');
+
+	// classes for input fields which are not recogonized by IE
+	 $("input:text, input:password").addClass('input');
+	 $("input:checkbox").addClass('checkbox');
+	 $("input:radio").addClass('radio'); 
+
+	// select all checkboxes with a class Y
+	$("input:checkbox.Y, input:checkbox.1, input:radio.Y, input:radio.1").attr('checked', true); 
+
+	// turn select controls to chosen type selects
+	// IE browser effects only
+	if ($.browser.msie) {
+		// remove the hidden property
+		$(".chzn-select").removeClass('chzn-select'); 
+	} else {
+		// turn select controls to chosen type selects
+		$(".chzn-select").chosen();  
+	  	// if a select field with chosen changes, revalidate the field 
+		$("select.chzn-select").chosen().change(function(){
+			$("form").validate().element(this);
+		});
+	}
+	
+	// search field for list	
+	setValue("searchterm");
+	$("#searchterm, #searchbutton").bind("click", function(event){
+		clearValue("searchterm"); 
+	}).bind('blur', function(event){
+		setValue("searchterm"); 
+	})
+	
+	// auto submit for list filters with the specified class, and all selects in a container with class filter 
+	$(".autosubmitsearchform, .filtercontainer select, #itemcountperpage").not(".noautosubmitsearchform").each(function(){
+		$(this).change(function(){
+			// clear the values in the search field
+			clearValue("searchterm"); 
+			// submit the form containing the dropdown
+			$(this).parents("form:first").submit(); 
+		});
+	});
+
+	// function to validate the enddate being greater than the start date
+	$.validator.addMethod("enddateafterstartdate", function(value, element) {            
+		var startDate = $(".startdate").val();  
+		if($.trim(value) == ""){
+			return true;
+		}
+		if($.trim(startDate) == ""){
+			return false;
+		}
+		return Date.parse(startDate) <= Date.parse(value);        
+	}, "Please select an End Date after the Start Date");
+
+	$.validator.addMethod("noSpace", function(value, element) { 
+		  return value.indexOf(" ") < 0 && value != ""; 
+		}, "No space allowed");
+
+	// validate that a field cannot be equal to another
+	$.validator.addMethod("notEqualTo", function(value, element, param) {
+		 return this.optional(element) || value != $(param).val();
+	}, "The two fields cannot be equal");
+	
+	$("#datalist").hide();
+	$("#managedata").click(function(){		
+		$("#datalist").show();
+	});
+	// resize the main menu items to fit in a single row 
+	var colWrap = $("ul#mainmenu").width(); //Get the width of entire menu		
+	var colNum = $("ul#mainmenu li").size(); // The number of items in the menu
+	
+	//Get the width of the row and divide it by the number of columns it can fit / then round it down to a whole number. This value will be the exact width of the re-adjusted column
+	var colFixed = Math.floor((colWrap - colNum) / colNum); 
+	$("ul#mainmenu").css({'width': colWrap}); //Set exact width of row in pixels instead of using % - Prevents cross-browser bugs that appear in certain view port resolutions.
+	$("ul#mainmenu li").css({'width': colFixed}); //Set exact width of the re-adjusted column	 /**/
+	
+	
+	// Drop down menu functionality in the left column
+	$(".dropdown dt a").click(function() {
+		$(".dropdown dd ul").toggle();
+	});
+				
+	$(".dropdown dd ul li a").click(function() {
+		var text = $(this).html();
+		// $(".dropdown dt a span").html(text);
+		$(".dropdown dd ul").hide();			
+	});
+	
+	$(document).bind('click', function(e) {
+		var $clicked = $(e.target);
+		if (! $clicked.parents().hasClass("dropdown"))
+			$(".dropdown dd ul").hide();
+	});
+	
+	// Copy buttons at the top to the bottom
+	$("td.bottombuttons").html($("td.topbuttons").html());
+}); 
+</script>
+</head>
+<?php 
+	$typeclass = '';
+	if (isApplicationLAMIS()) {
+		$typeclass = 'agmis';
+	}
+	if (isApplicationLAMIS()) {
+		$typeclass = 'lamis';
+	}
+	if (isApplicationLGMIS()) {		
+		$typeclass = 'lgmis';
+	}
+?>
+<body id="<?php echo $typeclass; ?>">
+<div id="maincontainer">
+  <?php require_once APPLICATION_PATH.'/views/scripts/index/header.phtml'; ?>
+<?php if ($isloggedin) { 
+		// main menu only shown when the user is logged in 
+		require_once APPLICATION_PATH.'/views/scripts/index/mainmenu.phtml'; 
+	 } ?>
+  <div id="contentwrapper">
+    <div id="contentcolumn"> <?php echo $this->layout()->content; ?></div>    	
+  </div>
+  <?php if ($isloggedin) {
+  			// right column only shown when the user is logged in
+  			require_once APPLICATION_PATH.'/views/scripts/index/righthandband.phtml'; 
+  		}
+  	?>
+  
+  <div id="footer">
+      <?php if (!isApplicationLGMIS()) {
+                 if (($request->getControllerName() != "lgmis")) {
+          ?>
+          <?php echo sprintf($this->translate("copyright"), date("Y"), $this->translate("companyname")); ?>
+      <?php } } ?>
+  </div>
+</div>
+<div class="hidden" id="printer_page_action_buttons"> <a title="Close Window" onClick="window.close()" > <img src="<?php echo $this->baseUrl('images/cross.png'); ?>" width="16" height="16" alt="Close Window"> Close Window </a> &nbsp;&nbsp; <a title="Print" onClick="window.print()" > <img src="<?php echo $this->baseUrl('images/printer.png'); ?>" width="16" height="16" alt="Print"> Print </a> </div>
+<div id="dialog" class="hidden"></div>
+<div id="dialog_contents" class="hidden">
+	<br><br><br>Now Loading .... <br><br><br>Please Wait .... <br><br><br><img src="<?php echo $this->baseUrl('images/loading.gif'); ?>" alt="Loading <br>Please Wait">
+</div>
+</body>
+</html>

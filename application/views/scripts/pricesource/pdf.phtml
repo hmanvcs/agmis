@@ -1,0 +1,16 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+?>
+<script type="text/javascript" src="<?php echo $this->baseUrl('js/pdfobject.js'); ?>"></script>
+<script type="text/javascript">
+
+  window.onload = function (){
+	var myPDF = new PDFObject({ url: "<?php echo $this->baseUrl('js/sample.pdf'); ?>"}).embed();
+  };
+
+</script>
+
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

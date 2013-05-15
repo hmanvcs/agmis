@@ -1,0 +1,71 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+		$all_results_query = "SELECT 
+			  d.datecollected AS datecollected,
+			  cd.`name`,
+			  FORMAT(ROUND(AVG(d.retailprice), -1), 0) AS `Retail Price`,
+			  FORMAT(ROUND(AVG(d.wholesaleprice), -1), 0) AS `Wholesale Price`
+			FROM
+			  commoditypricedetails AS d 
+			  INNER JOIN commodity cd ON d.`commodityid` = cd.`id`
+			  INNER JOIN 
+			    (SELECT 
+			      MAX(cp.datecollected) AS datecollected
+			    FROM
+			      commoditypricedetails cp 
+			      INNER JOIN commoditypricesubmission AS cs1 
+			        ON (
+			          cp.`submissionid` = cs1.`id` 
+			          AND cs1.`status` = 'Approved'
+			        ) 
+			      INNER JOIN pricesource AS p 
+			        ON (
+			          cp.sourceid = p.id 
+			          AND p.`applicationtype` = 0
+			        ) 
+			    WHERE cp.`pricecategoryid` = 5   
+			   	) AS d2 
+			    ON (
+			      d.`datecollected` = d2.datecollected
+			    ) 
+			WHERE d.`pricecategoryid` = 5 
+			GROUP BY d.`commodityid`
+			ORDER BY cd.name ";
+
+		//debugMessage($all_results_query);
+		$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($all_results_query);
+		$has_no_data = (count($result) == 0) ? true : false; 
+		if (!$has_no_data) {
+?>
+	<b>As at <?php echo changeMySQLDateToPageFormat($result[0]['datecollected']); ?></b>
+	<table class="list">
+      <thead>
+        <tr>
+          <td>Commodity</td>
+          <td>Retail Price</td>
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+            	foreach($result as $line){						
+            ?>
+        <tr>
+          <td><?php echo $line['name']; ?></td>
+          <td align="right"><?php echo $line['Retail Price']; ?></td>
+        </tr>
+        <?php 						
+            	} // end processing results 
+            ?>
+      </tbody>
+    </table><br>
+    <?php
+    	} // end check for no data 
+    	
+    ?>
+    <a target="_blank" href="http://www.amitsa.org/">Click here</a> to visit the AMITSA website for more input prices
+    
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

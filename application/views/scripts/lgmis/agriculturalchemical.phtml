@@ -1,0 +1,106 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$pricesubmission = new CommodityPriceSubmission();
+	$hasprices = true;
+	if($pricesubmission->getLatestPriceSubmissionIDForLocation($request->id) === false){
+		$hasprices = false;
+	}
+    
+	$location = new District();
+	$location->populate($request->id);	
+	// default title is to enable adding any payee
+	$title = $this->translate("commodityprice_chemical_pagetitle_current"); 
+	$this->headTitle($title);	
+	
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.formtable {
+	width: 100%; 
+} 
+div#lgmis h1.pagetitle{
+	padding-bottom: 0
+}
+</style>
+<div id="lgmis">
+<?php require_once APPLICATION_PATH.'/views/scripts/lgmis/menu.phtml'; ?>
+    <h1 class="pagetitle"><?php echo $title; ?></h1>
+    <h2><?php echo $this->translate('lgmis_sector_overview'); ?></h2>
+    <?php echo nl2br($location->getLocationDetail()->getAgriculturalInputPrices()); ?>
+    <h2><?php echo $this->translate('lgmis_sector_information'); ?></h2>
+	<?php if(!$hasprices){ ?>
+	<label class="informationmessage">There are currently no prices to display for <b><?php echo $location->getName(); ?></b></label>
+    <?php } else { ?>
+    <form>
+      <div class="pageinfo">Prices in <b><?php echo $location->getName(); ?></b> as at <b><?php echo changeMySQLDateToPageFormat($pricesubmission->getDateCollected()); ?></b></div>
+      <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+        <label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label>
+      <?php } ?>
+      <table class="formtable commodities">
+        <thead>
+          <tr class="sectionheading">
+            <td align="left" class="nowrapping" style="width:260px;"><?php echo $this->translate("commodityprice_commodity_label"); ?></td>
+            <td align="center"><?php echo $this->translate("commodityprice_units_label"); ?></td>
+            <td align="center"><?php echo $this->translate("commodityprice_wholesale_label"); ?></td>
+            <td align="center"><?php echo $this->translate("commodityprice_retail_label"); ?></td>        
+            <td align="center">Notes</td>
+          </tr>
+        </thead>
+        <?php   
+            # Fetch Existing Price Details for the current submission
+            $commodities = $pricesubmission->getCurrentPriceDetails(6);
+            // debugMessage($result);
+            $i = 0;
+            foreach($commodities as $commodity){
+      ?>
+        <tr class="<?php echo $commodity['categoryid']; ?>">
+          <td align="left" class="label"><?php echo $commodity['name']; ?></td>
+          <td align="center"><?php echo $commodity['units']; ?></td>
+          <td align="center" class="prices"><?php echo formatNumber($commodity['wholesaleprice']); ?></td>
+          <td align="center" class="prices"><?php echo formatNumber($commodity['retailprice']); ?></td>
+          <td align="center"><script>
+                $(document).ready(function(){				
+                    
+                    $("#notes_<?php echo $i; ?>_trigger").click(function(){					
+                        $("#dialog_<?php echo $i; ?>").dialog({
+                            width: 500,
+                            height: 200,
+                            show: 'slide',						
+                            modal: true,
+                            title: $(this).attr('title'),						
+                            buttons: [{text: "Ok", click: function() { $(this).dialog("close"); }}] 
+                        });
+                    });
+                });
+            </script>
+            <?php if(isEmptyString($commodity['notes'])){ ?>
+            ---
+            <?php } else { ?>
+            <a href="javascript: doNothing();" class="notes" id="notes_<?php echo $i; ?>_trigger" title="Notes for <?php echo $commodity['name']; ?>"><img src="<?php echo $this->baseUrl('images/notes_plus.png'); ?>" /></a>
+            <div id="dialog_<?php echo $i; ?>" class="hidden" style="width:500px; height:250px;">
+              <label><?php echo nl2br($commodity['notes']); ?></label>
+            </div>
+            <?php } ?></td>
+        </tr>
+        <?php $i++;
+         }	
+        ?>
+      </table>
+    </form>
+    <?php } ?>
+</div>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

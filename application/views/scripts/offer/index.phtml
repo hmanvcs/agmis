@@ -1,0 +1,236 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$offer = new Offer();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("offer_pagetitle_new"); 
+	$posturl = $this->baseUrl("offer/create");
+	$button_title = $this->translate("offer_button_new"); 
+	
+	// set load the offer if the id is available in the url 
+	if (!isEmptyString($request->id)) {
+		$offer->populate(decode($request->id));
+		$button_title = $this->translate("offer_button_edit"); 
+		$posturl = $this->baseUrl("offer/edit");
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$offer->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+	
+	# SQL for the units for each commodity
+	$unitsql = "SELECT c.id AS optionvalue, cu.name as optiontext FROM commodity c INNER JOIN commodityunit cu ON c.unitid = cu.id";
+?>
+<script>
+	$(document).ready(function() {
+		// configure the date picker not to accept dates before today
+		datepickerOpts.minDate = new Date();   
+		$("#expirydate").datepicker(datepickerOpts); 
+		
+		// Validate the price amount
+		$.validator.addMethod("valid_price", function(value, element) {				
+			// only digits and numbers allowed
+			if(!IsValidAmount(value)){
+				return false;
+			}
+			return true;
+		}, "<?php echo $this->translate("offer_price_number_error");?>");		
+		
+		$("#offerform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				//offertype: "required",
+				contact: "required",
+				commodityid: "required",
+				quantity: {
+					"required": true,
+					"number": true,
+					"min": 1
+				}, 
+				locationid: "required",
+				telephone: "required",
+				expirydate: "required",
+				price: {
+					required: true,														
+					valid_price: true					
+				} 
+			}, 
+			// the messages for each of the fields being validated
+			messages: {		
+				//offertype:"<?php //echo $this->translate("offer_type_error"); ?>", 		
+				contact: "<?php echo $this->translate("offer_contact_error"); ?>",
+				commodityid: "<?php echo $this->translate("offer_commodity_error"); ?>",
+				quantity: {
+					"required": "<?php echo $this->translate("offer_quantity_error"); ?>",
+					"number": "<?php echo $this->translate("offer_quantity_error_number"); ?>",
+					"min": "<?php echo $this->translate("offer_quantity_error_min"); ?>"
+				}, 
+				locationid: "<?php echo $this->translate("offer_location_error"); ?>",
+				telephone: "<?php echo $this->translate("offer_telephone_error"); ?>",
+				expirydate: "<?php echo $this->translate("offer_expirydate_error"); ?>",
+				price: {
+					required: "<?php echo $this->translate("offer_price_error");?>"				
+				}
+			}
+		});
+		// change the units displayed based on the commodity selected 	
+		$("#commodityid").change(function(){
+			// select the correct unit
+			$('#commodityunit').val($("#commodityid :selected").val()); 
+			// display the selected unit
+			$("#units").html($("#commodityunit :selected").text()); 
+			$("#perunit_price").html(" per "+$("#commodityunit :selected").text()); 
+			
+			if($("#commodityunit").val() == ""){
+				$("#units").html(""); 
+				$("#perunit_price").html(""); 
+			}
+		}); 	
+		
+		// trigger a change
+		$("#commodityid").trigger("change");		
+	}); 
+	
+	// check that price is a valid number
+	function IsValidAmount(value){
+		var ValidChars = "0123456789";
+		var valid=true;
+		var Char;
+		
+		for (i = 0; i < value.length && valid == true; i++){ 
+			Char = value.charAt(i); 
+			if (ValidChars.indexOf(Char) == -1) {
+				valid = false;
+			}
+		}
+		return valid;
+	}
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("offer_page_info"); ?></div>
+<form id="offerform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("offer_offertype_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php 
+					$offertypelist = new LookupType(); 
+					$offertypelist->setName("OFFER_TYPE"); 
+					$pf = new Zend_Form_Element_Radio('offertype',
+							array(
+								'multiOptions' => $offertypelist->getOptionValuesAndDescription(), 
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper')
+							)
+						);
+						$pf->setValue($offer->getOfferType());
+						// put the otpions on a single line  
+						$pf->setSeparator("    "); 
+						echo $pf->render();
+					
+					?></td>
+    </tr>
+	 <tr>
+      <td class="label"><?php echo $this->translate("offer_contact_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="contact" id="contact" value="<?php echo $offer->getContact(); ?>" /></td>
+    </tr>
+	  <tr>
+      <td class="label"><?php echo $this->translate("offer_telephone_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" id="telephone" name="telephone" value="<?php echo $offer->getTelephone(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("offer_commodity_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+      	$commoditylist = new LookupType(); 
+      	$commoditylist->setName("ALL_COMMODITIES");
+       	$commoditydropdown = new Zend_Form_Element_Select('commodityid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $commoditylist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("commodityfilter", 'chzn-select'),
+							)
+						);
+		$commoditydropdown->setValue($offer->getCommodityID()); 
+		echo $commoditydropdown->render(); 
+      ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("offer_quantity_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input name="quantity" id="quantity" class="numberfield" type="text" value="<?php echo $offer->getQuantity(); ?>" />
+        &nbsp;&nbsp;<span id="units"></span>
+		  <?php
+       	$commodityunitdropdown = new Zend_Form_Element_Select('commodityunit',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array("" => ""),getOptionValuesFromDatabaseQuery($unitsql)),								
+								'view' => new Zend_View(),
+								'class' => array("hidden"),
+								'decorators' => array('ViewHelper')
+							)
+						);
+		$commodityunitdropdown->setValue($offer->getCommodity()->getUnitID()); 
+		echo $commodityunitdropdown->render(); 
+      ?>
+		  </td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("offer_price_label"); ?>(<?php echo $config->currency->defaultsymbol; ?>):<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="price" id="price" class="numberfield" value="<?php echo $offer->getPrice(); ?>" />&nbsp;&nbsp;<span id="perunit_price"></span></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("offer_location_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+      	$districtlist = new LookupType(); 
+      	$districtlist->setName("ALL_DISTRICTS");
+       	$districtdropdown = new Zend_Form_Element_Select('locationid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+		$districtdropdown->setValue($offer->getLocationID()); 
+		echo $districtdropdown->render(); 
+      ?></td>
+    </tr>
+   
+    <tr>
+      <td class="label"><?php echo $this->translate("offer_expirydate_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input name="expirydate" id="expirydate" class="datefield" type="text" value="<?php echo changemySQlDatetoPageFormat($offer->getExpiryDate()); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("offer_notes_label"); ?>:</td>
+      <td><textarea class="expanding" id="notes" name="notes"><?php echo $offer->getNotes(); ?></textarea></td>
+    </tr>  
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("offer/list/isactive/Y"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Offer" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($offer->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

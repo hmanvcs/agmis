@@ -1,0 +1,170 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = "Fish Production";
+	$this->headTitle($title);
+	
+	$location = new District();
+	$location->populate($request->id);	
+
+	$all_results_query = "SELECT fd.`mputaid`, fd.`ngegeid`, fd.`mukeneid`, fd.`mambaid`, fd.`maleid`, fd.`otherid` as otherfishid, fd.`othertilapiaid`, 
+				  mp.name AS mputaname, SUM(fd.mputaweight) AS `mputaweight`, mp.`description` AS mputadesc, 
+  ng.`name` AS ngegename, SUM(fd.ngegeweight) AS `ngegeweight`, ng.`description` AS ngegedesc, 
+  mk.`name` AS mukenename, SUM(fd.mukeneweight) AS `mukeneweight`, mk.`description` AS mukenedesc, 
+  ma.`name` AS mambaname, SUM(fd.mambaweight) AS `mambaweight`, ma.`description` AS mambadesc, 
+  male.`name` AS malename, SUM(fd.maleweight) AS `maleweight`, male.`description` AS maledesc, 
+  ot.`name` AS othertilapianame, SUM(fd.othertilapiaweight) AS othertilapiaweight, ot.`description` AS othertilapiadesc, 
+  other.`name` AS otherfishname, SUM(fd.otherweight) AS otherfishweight, other.`description` AS otherfishdesc, fs.daterecorded 
+				FROM
+				  fishcatchdetail AS fd 
+				  INNER JOIN fishcatchsummary AS fs 
+				    ON fd.catchsummaryid = fs.id 
+				  INNER JOIN commodity mp ON (fd.`mputaid` = mp.id) 
+				  INNER JOIN commodity ng ON (fd.`ngegeid` = ng.id) 
+				  INNER JOIN commodity mk ON (fd.`mukeneid` = mk.id) 
+				  INNER JOIN commodity ma ON (fd.`mambaid` = ma.id) 
+				  INNER JOIN commodity male ON (fd.`maleid` = male.id) 
+				  INNER JOIN commodity ot ON (fd.`othertilapiaid` = ot.id) 
+				  INNER JOIN commodity other ON (fd.`otherid` = other.id) 
+		  INNER JOIN (SELECT YEAR(MAX(fc.daterecorded)) AS maxyear, MONTH(MAX(fc.daterecorded)) AS maxmonth FROM fishcatchsummary fc WHERE fc.districtid = '".$request->id."') AS fmax ON (YEAR(fs.`daterecorded`) = fmax.maxyear AND MONTH(fs.`daterecorded`) = fmax.maxmonth) 
+		WHERE fs.districtid = '".$request->id."' ";
+
+    // debugMessage($all_results_query); 
+	
+	$conn = Doctrine_Manager::connection(); 
+	$attr_result = $conn->fetchRow($all_results_query);
+	
+	$has_no_data = (count($attr_result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";	
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.list {
+	width: 99%; 
+} 
+div#lgmis table.formtable {
+	margin-top: 0; 
+} 
+</style>
+<div id="lgmis">
+<?php require_once APPLICATION_PATH.'/views/scripts/lgmis/menu.phtml'; ?>
+<h1 class="pagetitle"><?php echo $title; ?></h1>
+<h2><?php echo $this->translate('lgmis_sector_overview'); ?></h2>
+<?php echo nl2br($location->getLocationDetail()->getFishProduction()); ?>
+<h2><?php echo $this->translate('lgmis_sector_information'); ?></h2>
+<form action="<?php echo $this->baseUrl("livestocksector/listsearch"); ?>" method="get" id="lgmislivestocksector">
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("livestocksector_list_norecords"); ?></label>
+  <?php } else { ?>
+  <h2>Production Statistics for <?php echo date('F Y', strtotime(changeMySQLDateToPageFormat($attr_result['daterecorded'])));?></h2>
+  <table class="list formtable">
+        <?php
+        		$validator = new Zend_Validate_File_Exists(); 
+				$validator->setDirectory(APPLICATION_PATH.('/../public/uploads/commodity'));
+            ?>
+            <tr>
+        		<td class="nowrapping" style="width: 460px;">
+        			<h3><?php echo $attr_result['mputaname']; ?></h3>
+	        		<?php if ($validator->isValid($attr_result['mputaid'].'.jpg')) { ?>
+	        			<img src="<?php echo $this->baseUrl('uploads/commodity/'.$attr_result['mputaid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+	        		<?php } ?>
+	        		<b><?php echo $this->translate("commodity_description_label"); ?>:</b>
+	                <?php echo nl2br($attr_result['mputadesc']); ?><br><br>
+	                <b><?php echo $this->translate("fishingsector_catch_label"); ?>:</b>
+	                <?php echo $attr_result['mputaweight']; ?> kg<br><br>
+              </td>  
+              <td class="nowrapping" style="width: 460px;">
+        			<h3><?php echo $attr_result['ngegename']; ?></h3>
+	        		<?php if ($validator->isValid($attr_result['ngegeid'].'.jpg')) { ?>
+	        			<img src="<?php echo $this->baseUrl('uploads/commodity/'.$attr_result['ngegeid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+	        		<?php } ?>
+	        		<b><?php echo $this->translate("commodity_description_label"); ?>:</b>
+	                <?php echo nl2br($attr_result['ngegedesc']); ?><br><br>
+	                <b><?php echo $this->translate("fishingsector_catch_label"); ?>:</b>
+	                <?php echo $attr_result['ngegeweight']; ?> kg<br><br>
+              </td>  
+          	</tr>
+          	<tr>
+        		<td class="nowrapping" style="width: 460px;">
+        			<h3><?php echo $attr_result['mambaname']; ?></h3>
+	        		<?php if ($validator->isValid($attr_result['mambaid'].'.jpg')) { ?>
+	        			<img src="<?php echo $this->baseUrl('uploads/commodity/'.$attr_result['mambaid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+	        		<?php } ?>
+	        		<b><?php echo $this->translate("commodity_description_label"); ?>:</b>
+	                <?php echo nl2br($attr_result['mambadesc']); ?><br><br>
+	                <b><?php echo $this->translate("fishingsector_catch_label"); ?>:</b>
+	                <?php echo $attr_result['mambaweight']; ?> kg<br><br>
+              </td>  
+              <td class="nowrapping" style="width: 460px;">
+        			<h3><?php echo $attr_result['malename']; ?></h3>
+	        		<?php if ($validator->isValid($attr_result['maleid'].'.jpg')) { ?>
+	        			<img src="<?php echo $this->baseUrl('uploads/commodity/'.$attr_result['maleid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+	        		<?php } ?>
+	        		<b><?php echo $this->translate("commodity_description_label"); ?>:</b>
+	                <?php echo nl2br($attr_result['maledesc']); ?><br><br>
+	                <b><?php echo $this->translate("fishingsector_catch_label"); ?>:</b>
+	                <?php echo $attr_result['maleweight']; ?> kg<br><br>
+              </td>  
+          	</tr>
+          	<tr>
+        		<td class="nowrapping" style="width: 460px;">
+        			<h3><?php echo $attr_result['mukenename']; ?></h3>
+	        		<?php if ($validator->isValid($attr_result['mukeneid'].'.jpg')) { ?>
+	        			<img src="<?php echo $this->baseUrl('uploads/commodity/'.$attr_result['mukeneid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+	        		<?php } ?>
+	        		<b><?php echo $this->translate("commodity_description_label"); ?>:</b>
+	                <?php echo nl2br($attr_result['mukenedesc']); ?><br><br>
+	                <b><?php echo $this->translate("fishingsector_catch_label"); ?>:</b>
+	                <?php echo $attr_result['mukeneweight']; ?> kg<br><br>
+              </td>  
+              <td class="nowrapping" style="width: 460px;">
+        			<h3><?php echo $attr_result['othertilapianame']; ?></h3>
+	        		<?php if ($validator->isValid($attr_result['othertilapiaid'].'.jpg')) { ?>
+	        			<img src="<?php echo $this->baseUrl('uploads/commodity/'.$attr_result['othertilapiaid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+	        		<?php } ?>
+	        		<b><?php echo $this->translate("commodity_description_label"); ?>:</b>
+	                <?php echo nl2br($attr_result['othertilapiadesc']); ?><br><br>
+	                <b><?php echo $this->translate("fishingsector_catch_label"); ?>:</b>
+	                <?php echo $attr_result['othertilapiaweight']; ?> kg<br><br>
+              </td>  
+          	</tr>
+          	<tr>
+        		<td class="nowrapping" style="width: 460px;">
+        			<h3><?php echo $attr_result['otherfishname']; ?></h3>
+	        		<?php if ($validator->isValid($attr_result['otherfishid'].'.jpg')) { ?>
+	        			<img src="<?php echo $this->baseUrl('uploads/commodity/'.$attr_result['otherfishid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+	        		<?php } ?>
+	        		<b><?php echo $this->translate("commodity_description_label"); ?>:</b>
+	                <?php echo nl2br($attr_result['otherfishdesc']); ?><br><br>
+	                <b><?php echo $this->translate("fishingsector_catch_label"); ?>:</b>
+	                <?php echo $attr_result['otherfishweight']; ?> kg<br><br>
+              </td>  
+              <td class="nowrapping" style="width: 460px;">
+        			&nbsp; 
+              </td>  
+          	</tr>
+    </table>
+  <?php			
+	} // end check that there are results    	
+?>
+</form>
+</div>

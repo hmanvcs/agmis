@@ -1,0 +1,76 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$boat = new Boat();
+	
+	// default title is to enable adding any boat
+	$title = $this->translate("boat_pagetitle_view"); 
+	$boat->populate(decode($request->id));
+		
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Boat? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 		
+	}); 
+</script>
+<div class="pageinfo"><?php echo $this->translate("boat_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $title; ?></td>
+  </tr>  
+  <tr>
+    <td class="label"><?php echo $this->translate("boat_owner_label"); ?>:</td>
+    <td><?php echo $boat->getOwner(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("boat_name_label"); ?>:</td>
+    <td><?php echo $boat->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("boat_type_label"); ?>:</td>
+    <td><?php echo $boat->getType(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("boat_landingsite_label"); ?>:</td>
+    <td><?php echo $boat->getLandingSite()->getName(); ?></td>
+  </tr>
+  <tr>
+      <td class="label"><?php echo $this->translate("boat_regno_label"); ?>:</td>
+      <td><?php echo $boat->getRegno(); ?></td>
+    </tr> 
+  <tr>
+    <td class="label"><?php echo $this->translate("boat_description_label"); ?>:</td>
+    <td><?php echo isEmptyString($boat->getDescription()) ? '--' : $boat->getDescription(); ?></td>
+  </tr>
+</table>
+<br />
+<table class="formtable">
+  <tfoot>
+    <tr>
+      <td>	  	
+        <?php if ($acl->checkPermission('Boat', ACTION_DELETE)) { ?>
+        	<a href="<?php echo $this->baseUrl('boat/delete/entityname/Boat/id/'.encode($boat->getID()).'/'.SUCCESS_MESSAGE.'/Boat has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("boat/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("boat_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("boat_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Boat', ACTION_EDIT)) { ?>        
+        	<a href="<?php echo $this->baseUrl('boat/index/id/'.encode($boat->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("boat_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("boat_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Boat', ACTION_LIST)) { ?>
+        	<a href="<?php echo $this->baseUrl('boat/list'); ?>" class="positiveaction" title="<?php echo $this->translate("boat_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("boat_button_list"); ?></a>
+        <?php } ?>
+      </td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

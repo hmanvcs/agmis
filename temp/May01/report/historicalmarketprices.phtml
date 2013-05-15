@@ -1,0 +1,321 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("report_historical_marketprices_pagetitle");
+	$this->headTitle($title);
+	
+	$commoditieslist = new LookupType(); 
+	$commoditieslist->setName("ALL_MARKET_COMMODITIES");	
+	$commodities = $commoditieslist->getOptionValuesFromQuery();
+	
+	$marketlookup = new LookupType(); 
+	$marketlookup->setName("ALL_MARKET_SOURCES");
+	$marketsources = $marketlookup->getOptionValuesFromQuery();
+					
+	$startperiods = getMonthsForStartFilter();
+	$endperiods = getMonthsForEndFilter();
+				
+
+	if(!isEmptyString($request->generate)){		
+		# Create an instance of the class to handle the pagination
+		$paginate = new Pagination();	
+		$paginate->setView($this);
+		# set the search columns to be used on this list
+		$paginate->setFilterColumns(array("d.commodityid","p.locationid","l.regionid","d.sourceid"));	
+		$paginate->setDefaultSortBy("d.datecollected");
+		$paginate->setStartAndEndDateFilterColumn("d.datecollected"); 
+		$paginate->setItemCountPerPage("ALL");
+		
+		$startdate = $request->startdate;
+		$enddate = $request->enddate;
+		
+		$customfilter = "";
+		$customgroupby = "";
+		if(!isEmptyString($request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid'))){		
+			$customfilter = " AND  l.regionid = '".$request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid')."' ";
+			$customgroupby = ", l.regionid ";
+		}
+		if(!isEmptyString($request->getParam('p'.HTML_TABLE_COLUMN_SEPARATOR.'locationid'))){		
+			$customfilter = " AND  p.locationid = '".$request->getParam('p'.HTML_TABLE_COLUMN_SEPARATOR.'locationid')."' ";
+			$customgroupby = ", p.locationid ";
+		}
+		if(!isEmptyString($request->getParam('d'.HTML_TABLE_COLUMN_SEPARATOR.'sourceid'))){		
+			$customfilter = " AND  d.sourceid = '".$request->getParam('d'.HTML_TABLE_COLUMN_SEPARATOR.'sourceid')."' ";
+			$customgroupby = ", d.sourceid ";
+		}
+		
+		$paginate->processPost($request->getParams());
+		$all_results_query = "
+			SELECT			
+			d.id,
+			d.datecollected,
+			CONCAT(MONTH(d.datecollected), YEAR(d.datecollected)) as monthyear,
+			CONCAT(DATE_FORMAT(d.datecollected, '%b'), ' ', YEAR(d.datecollected)) as `Month`,
+			ROUND(AVG(d.retailprice), -2) as `Retail Price`,
+			ROUND(AVG(d.wholesaleprice), -2)  as `Wholesale Price`
+			FROM
+			commoditypricedetails AS d
+			Inner Join pricesource as p on (d.sourceid = p.id)
+			Inner Join location as l 
+			WHERE (p.locationid = l.id) ".$customfilter." ".$paginate->getSearchAndFilterSQL()." GROUP BY YEAR(d.datecollected), MONTH(d.datecollected) ".$customgroupby." ".$paginate->getSortSQL();
+			
+		// debugMessage($all_results_query);
+		$paginate->setItemCountFromSQLQuery($all_results_query);
+		
+		$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+		# echo $current_results_query;
+		$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+		$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+		# the query string to be appended to the return to list URL
+		$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+		
+		$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($current_results_query);
+	
+		$has_no_data = (count($result) == 0) ? true : false;
+		
+		if(!$has_no_data){
+			$processeddata = array();
+			foreach($result as $key => $line){			
+				$processeddata['months'][] = $line['Month'];
+				$processeddata['retailprices'][] = $line['Retail Price'];
+				$processeddata['wholesaleprices'][] = $line['Wholesale Price'];
+			}
+			
+			// debugMessage($result);
+			// create list for periods
+			$periodlist = implode("', '",$processeddata['months']);
+			$periodlist = "'".$periodlist;
+			$periodlist = $periodlist."'";
+			// create list for retail price
+			$retaillist = implode(',',$processeddata['retailprices']);
+			// create list for wholesale price
+			$wholesalelist = implode(',',$processeddata['wholesaleprices']);	
+		}
+	}
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+select.commodity {
+	max-width:140px;
+}
+</style>
+<script type="text/javascript">
+var chart;
+$(document).ready(function() {
+	// validate required fields
+	$("#historicalmarketprices").validate({		
+		rules: {
+			startdate: "required",		
+			enddate: {
+				"required": true,
+				"enddateafterstartdate": true			
+			},
+			'<?php echo 'd'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid'; ?>': "required"			
+		}, 
+		// the messages for each of the fields being validated
+		messages: {				
+			startdate: "Select a Starting Period",			
+			enddate: {
+				"required": "Select an Ending Period"
+			},
+			'<?php echo 'd'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid'; ?>': "Select a Commodity"
+		},
+		errorPlacement: function(error, element) {			
+			if(element.attr("name") == "startdate"){
+				error.appendTo("#startdateerror");
+			}
+			if(element.attr("name") == "enddate" ){
+				error.appendTo("#enddateerror");
+			}
+			if(element.attr("name") == "<?php echo 'd'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid'; ?>" ){
+				error.appendTo("#commodityerror");
+			}				
+		}
+	});	
+	
+	<?php if(!isEmptyString($request->getParam('d'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')) && !isEmptyString($request->startdate) && !isEmptyString($request->enddate) && !$has_no_data){ ?>
+	   chart = new Highcharts.Chart({
+		  chart: {
+			 renderTo: 'container',
+			 defaultSeriesType: 'line' ,
+			 marginBottom: 50       
+		  },
+		  credits: {
+				enabled: false
+			},
+		  title: {
+			 text: "Historical Prices Report For '<?php echo $commodities[$request->getParam('d'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')]; ?>'" ,
+			 margin: 25 
+		  }, 
+		  subtitle: {
+			 text: '<?php echo $startperiods[$startdate]; ?> to <?php echo $endperiods[$enddate]; ?>'        
+		  },     
+		  xAxis: {     
+			 categories: [<?php echo $periodlist; ?>]
+		  },
+		  yAxis: {         
+			 title: {
+				text: 'Price (UGX)'
+			 }
+		  },
+		  tooltip: {
+			 formatter: function() {
+				return this.series.name + ' for <?php echo $commodities[$request->getParam('d'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')]; ?> in '+ this.x + ': UGX ' + Highcharts.numberFormat(this.y, 0);
+			 }		
+		  },      
+		  legend: {
+			 layout: 'vertical',         
+			 align: 'left',
+			 verticalAlign: 'top',
+			 x: 10,
+			 y: -10,
+			 floating: true,
+			 shadow: true
+		  },   
+		  series: [{
+				 name: 'Average Retail Price',
+				 data: [<?php echo $retaillist; ?>]
+			}, {
+				 name: 'Average Wholesale Price',
+				 data: [<?php echo $wholesalelist; ?>]
+			}]
+	   });
+<?php } ?>
+});
+</script>
+
+<h2><?php echo $title; ?></h2>
+<form action="<?php echo $this->baseUrl("report/historicalmarketprices"); ?>" method="get" id="historicalmarketprices">
+  <table class="reportfiltercontainer">
+    <tr>
+      <td><table class="reportfiltersection">
+          <tr>
+            <td width="115"><b>From</b> <span class="requiredmark">*</span></td>
+            <td width="115"><b>To</b> <span class="requiredmark">*</span></td>
+            <td width="100"><b>Commodity</b> <span class="requiredmark">*</span></td>
+            <td width="125"><b>Region</b></td>
+            <td width="125"><b>District</b></td>
+            <td><b>Market</b></td> 	 	
+          </tr>
+          <tr>
+			<td><?php            					
+					$startdropdown = new Zend_Form_Element_Select('startdate',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'Select Start'), $startperiods),
+											'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('startdate', 'chzn-select')											
+										)
+									);
+					$startdropdown->setValue($request->getParam('startdate')); 
+					echo $startdropdown->render(); 
+				  ?></td>
+            <td><?php											
+					$enddropdown = new Zend_Form_Element_Select('enddate',
+										array(											
+											'multiOptions' => array_merge_maintain_keys(array('' => 'Select End'), $endperiods),
+											'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('enddate', 'chzn-select')											
+										)
+									);
+					$enddropdown->setValue($request->getParam('enddate')); 
+					echo $enddropdown->render(); 
+				  ?>
+            </td>
+            <td><?php					
+					$commoditiesdropdown = new Zend_Form_Element_Select('d'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Commodities'), $commodities),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('chzn-select','commodity'),
+											'title' => 'Filter Prices By Commodity'		
+										)
+									);
+					$commoditiesdropdown->setValue($request->getParam('d'.HTML_TABLE_COLUMN_SEPARATOR.'commodityid')); 
+					echo $commoditiesdropdown->render(); 
+				  ?>
+            </td>
+            <td><?php
+					$regionlist = new LookupType(); 
+					$regionlist->setName("ALL_REGIONS");
+					$regiondropdown = new Zend_Form_Element_Select('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Regions'), $regionlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('chzn-select')
+										)
+									);
+					$regiondropdown->setValue($request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'regionid')); 
+					echo $regiondropdown->render(); 
+				  ?></td>
+            <td><?php					
+					$districtlist = new LookupType(); 
+					$districtlist->setName("ALL_DISTRICTS");
+					$districtdropdown = new Zend_Form_Element_Select('p'.HTML_TABLE_COLUMN_SEPARATOR.'locationid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Districts'), $districtlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('chzn-select')
+										)
+									);
+					$districtdropdown->setValue($request->getParam('p'.HTML_TABLE_COLUMN_SEPARATOR.'locationid')); 
+					echo $districtdropdown->render(); 
+				  ?>
+            </td>
+            <td><?php					
+					$source = new Zend_Form_Element_Select('d'.HTML_TABLE_COLUMN_SEPARATOR.'sourceid',
+										array(
+											'multiOptions' => array_merge_maintain_keys(array('' => 'All Markets'), $marketsources),
+											'view' => new Zend_View(),
+											'decorators' => array('ViewHelper'),
+											'class' => array('chzn-select')											
+										)
+									);
+					$source->setValue($request->getParam('d'.HTML_TABLE_COLUMN_SEPARATOR.'sourceid')); 
+					echo $source->render(); 
+						
+                ?></td>
+          </tr>
+          <tr>
+		  	<td><div id="startdateerror"></div></td>
+            <td><div id="enddateerror"></div></td>           
+            <td><div id="commodityerror"></div></td>                 
+            <td colspan="3"></td>                             
+          </tr>          
+        </table></td>
+      <td align="left"><table>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="generate" title="Click here to Generate Report">Generate</button>
+             <input type="hidden" name="generate" value="true" /></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+<?php if(!isEmptyString($request->generate)){ ?>  
+	<?php
+        // show a message that there are no items to display
+        if ($has_no_data) {		
+    ?>
+        <div class="norecords"><label class="error"><?php echo $this->translate("report_global_norecords_label"); ?></label></div>
+    <?php } else { ?>
+        <div id="container"></div>
+    <?php			
+     } // end check that there are results 
+    ?>
+<?php } ?>  
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

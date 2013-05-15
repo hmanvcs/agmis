@@ -1,0 +1,18 @@
+# Add PHP5 support
+AddType x-mapp-php5 .php
+AddHandler x-mapp-php5 .php
+
+# the application environment - this is checked in the public/index_includes.php file
+SetEnv APPLICATION_ENV staging
+
+RewriteEngine On
+
+# the base for rewriting the files, this is relative to the document root being used 
+RewriteBase /staging/agmis/public
+
+# Rewrite conditions for the Front controller 
+RewriteCond %{REQUEST_FILENAME} -s [OR]
+RewriteCond %{REQUEST_FILENAME} -l [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^.*$ - [NC,L]
+RewriteRule ^.*$ index.php [NC,L]

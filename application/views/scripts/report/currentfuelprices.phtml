@@ -1,0 +1,178 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("report_latest_fuelprices_pagetitle");
+	$this->headTitle($title);
+	
+	$commoditieslist = new LookupType(); 
+	$commoditieslist->setName("ALL_FUEL_COMMODITIES");	
+	$commodities = $commoditieslist->getOptionValuesFromQuery();	
+	
+	if(!isEmptyString($request->commodityid) && !isEmptyString($request->generate)){		
+		$all_results_query = "
+			SELECT 
+			d.datecollected as datecollected, 
+			d.sourceid as sourceid, 
+			ROUND(AVG(d.retailprice), -2) AS `Retail Price`,  
+			d2.name as `Market`,
+			d2.locationid as `districtid`,
+			d2.districtname as `District Name` 
+			FROM commoditypricedetails AS d 
+			INNER JOIN (
+			 SELECT 
+				cp.sourceid, 
+				MAX(cp.datecollected) AS datecollected, 
+				p.name,
+				p.locationid,
+				l.name as districtname
+				FROM commoditypricedetails cp 
+				INNER JOIN commoditypricesubmission AS cs1 ON (cp.`submissionid` = cs1.`id` AND cs1.`status` = 'Approved') 
+				INNER JOIN pricesource AS p ON (cp.sourceid = p.id AND p.`applicationtype` = 0 ) 
+				INNER JOIN location AS l on (p.locationid = l.id AND l.locationtype = 2)
+				WHERE cp.`commodityid` = ".$request->commodityid." AND cp.`pricecategoryid` = 4 GROUP BY cp.sourceid) 
+			AS d2 ON (d.`sourceid` = d2.sourceid AND d.`datecollected` = d2.datecollected) 
+			WHERE d.`commodityid` = ".$request->commodityid." AND d.`pricecategoryid` = 4 GROUP BY d2.locationid ORDER BY d2.districtname";
+
+		// debugMessage($all_results_query);	
+		$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($all_results_query);
+		// debugMessage($result);
+		$has_no_data = (count($result) == 0) ? true : false; 
+		
+		if(!$has_no_data){ 
+			$processeddata = array();
+			foreach($result as $key => $line){
+				$processeddata['districtids'][] = $line['districtid'];
+				$processeddata['districts'][] = formatNumber($line['District Name']);
+				$processeddata['retailprices'][] = $line['Retail Price'];				
+			}
+			
+			// debugMessage($result);
+			// create list for market categories
+			$districtlist = implode("', '",$processeddata['districts']);
+			$districtlist = "'".$districtlist;
+			$districtlist = $districtlist."'";
+			// create list for retail price
+			$retaillist = implode(',',$processeddata['retailprices']);			
+		}		
+	}
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+
+</style>
+<script type="text/javascript">
+var chart;
+$(document).ready(function() {
+	$("#generate").hide();
+	<?php if(!isEmptyString($request->getParam('commodityid')) && !$has_no_data){ ?>
+		chart = new Highcharts.Chart({
+		  chart: {
+			 renderTo: 'container',
+			 defaultSeriesType: 'column',
+			 marginBottom: 100       
+		  },
+		  credits: {
+				enabled: false
+			},
+		  title: {
+			 text: "Current '<?php echo $commodities[$request->commodityid]; ?>' Prices Report"
+		  },
+		  xAxis: {
+			 categories: [<?php echo $districtlist; ?>],
+			 labels: {
+				rotation: 270,
+				align: 'right',
+				style: {
+					color: '#6D869F',
+					fontWeight: 'bold'
+				}
+			 }
+		  },
+		  yAxis: {
+			 min: 3000,         
+			 title: {
+				text: 'Price (ugx)'
+			 }
+		  },
+		  legend: {
+			 layout: 'vertical',         
+			 align: 'left',
+			 verticalAlign: 'top',
+			 x: 10,
+			 y: -10,
+			 floating: true,
+			 shadow: true
+		  },   
+		  tooltip: {
+			 formatter: function() {
+				return this.series.name + ' for <?php echo $commodities[$request->commodityid]; ?> in ' +this.x + ': UGX '+ Highcharts.numberFormat(this.y, 0);
+			 }
+		  },
+		  plotOptions: {
+			 column: {
+				pointPadding: 0.2,
+				borderWidth: 0
+			 }
+		  },
+			series: [{
+				 name: 'Retail Price',
+				 data: [<?php echo $retaillist; ?>]
+			}]
+	   });  
+	<?php } ?>
+	
+	$(".commodity").click(function(){
+		$("#commodityid").val($(this).attr('rel'));
+		$("#currentfuelprices").submit();
+	});
+});
+</script>
+<h2><?php echo $title; ?></h2>
+<form action="<?php echo $this->baseUrl("report/currentfuelprices"); ?>" method="get" id="currentfuelprices">
+  <table class="reportfiltercontainer">
+    <tr>
+      <td><table class="reportfiltersection">         
+          <tr>			
+            <td style="padding-top:15px;">
+				<a href="javascript: doNothing();" class="positiveaction commodity" rel="95" title="Petro Prices">Petro Prices</a>&nbsp;
+                <a href="javascript: doNothing();" class="positiveaction commodity" rel="97" title="Diesel Prices">Diesel Prices</a>&nbsp;			
+                <a href="javascript: doNothing();" class="positiveaction commodity" rel="96" title="Kerosene Prices">Kerosene Prices</a>&nbsp;			
+            </td>
+          </tr>         
+        </table></td>
+      <td align="left"><table>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="generate" title="Click here to Generate Report"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Generate Report</button>
+             <input type="hidden" name="generate" value="true" />
+             <input type="hidden" name="commodityid" id="commodityid" value="<?php echo $request->commodityid; ?>" /></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+<?php if(!isEmptyString($request->commodityid) && !isEmptyString($request->generate)){ ?>  
+	<?php
+        // show a message that there are no items to display
+        if ($has_no_data) {		
+    ?>
+        <div class="norecords"><label class="error"><?php echo $this->translate("report_global_norecords_label"); ?></label></div>
+    <?php } else { ?>
+        <div id="container"></div>
+    <?php			
+     } // end check that there are results 
+    ?>
+<?php } ?>  
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,351 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("report_approved_marketprices_pagetitle");
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array());	
+	$paginate->setFilterColumns(array("c.categoryid"));	
+	$paginate->setStartAndEndDateFilterColumn("cs.datecollected"); 
+	$paginate->setItemCountPerPage("All");
+	
+	$startdate = $request->startdate;
+	$enddate = $request->enddate;
+	
+	$marketsource= new LookupType(); 
+	$marketsource->setName("ALL_AGMIS_MARKETS");
+	$allmarkets = $marketsource->getOptionValuesFromQuery();
+	
+	// custom queries to populate whole prices 
+	$marketsdata_query = "";
+	$round_retail_markets_query = "";
+	$round_retail_count_query = "";
+	$round_wholesale_markets_query = "";
+	$round_wholesale_count_query = "";
+	foreach($allmarkets as $key => $market){
+		$marketsdata_query .= " ROUND(AVG(IF(cs.sourceid = ".$key.", NULLIF(cd.wholesaleprice ,0),NULL))) AS wholesaleprice_".$key.",
+								ROUND(AVG(IF(cs.sourceid = ".$key.", NULLIF(cd.retailprice ,0),NULL ))) AS retailprice_".$key.", ";
+		// retail avg					
+		$round_retail_markets_query .= " IF(ISNULL(ROUND(AVG(IF(cs.sourceid = ".$key.",NULLIF(cd.wholesaleprice ,0),NULL)))),0, ROUND(AVG(IF(cs.sourceid = ".$key.",NULLIF(cd.wholesaleprice ,0),NULL)))) + ";
+		$round_retail_count_query .= " IF(ISNULL(ROUND(AVG(IF(cs.sourceid = ".$key.",NULLIF(cd.wholesaleprice ,0),NULL)))),0, 1) +  ";
+		// wholesale avg
+		$round_wholesale_markets_query .= " IF(ISNULL(ROUND(AVG(IF(cs.sourceid = ".$key.",NULLIF(cd.retailprice ,0),NULL)))),0, ROUND(AVG(IF(cs.sourceid = ".$key.",NULLIF(cd.retailprice ,0),NULL)))) + ";
+		$round_wholesale_count_query .= " IF(ISNULL(ROUND(AVG(IF(cs.sourceid = ".$key.",NULLIF(cd.retailprice ,0),NULL)))),0, 1) +  ";
+		
+	}
+	$round_retail_markets_query .= " + 0 ";
+	$round_retail_count_query .= " + 0 ";
+	$round_wholesale_markets_query .= " + 0 ";
+	$round_wholesale_count_query .= " + 0 ";
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT c.id AS id,
+							c.categoryid AS `categoryid`,
+							cp.pricecategoryid AS `pricecategoryid`,
+							cc.name AS `category`,
+							c.name AS `name`,
+							u.name AS `units`,													
+							".$marketsdata_query."							
+							ROUND((
+								".$round_retail_markets_query."
+							) / (
+								".$round_retail_count_query."
+							)) as overall_wholesale_avg,
+							
+							ROUND((
+								".$round_wholesale_markets_query."
+							) / (
+								".$round_wholesale_count_query."
+							)) as overall_retail_avg
+							
+							FROM
+							commodity AS c
+							Inner Join commoditypricecategory AS cp ON (c.id = cp.commodityid AND cp.pricecategoryid= '2')
+							Inner Join commoditycategory AS cc ON (c.categoryid = cc.id)
+							Inner Join commodityunit AS u ON (c.unitid = u.id)
+							Inner Join commoditypricedetails AS cd ON (c.id = cd.commodityid)
+							Inner Join commoditypricesubmission AS cs ON (cd.submissionid = cs.id AND (TO_DAYS(cs.datecollected) BETWEEN TO_DAYS('".changeDateFromPageToMySQLFormat($startdate)."') AND TO_DAYS('".changeDateFromPageToMySQLFormat($enddate)."')) ) ".$paginate->getSearchAndFilterSQL()." GROUP BY  c.id ORDER BY c.name ASC ";
+								
+	// debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	# echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+#listresults_div {
+	float: left;
+	width: 100%;
+	overflow:scroll;
+}
+#listresults_div h2 {
+	background: url("../images/report_header_bg.png");
+	background-repeat:repeat-x;
+	width:100%;
+}
+table.list {
+	width:950px;
+}
+table.list thead td.heading {	
+	height:32px !important;
+	height:28x;	
+	background: url('<?php echo $this->baseUrl('images/report_header_bg.png'); ?>'); 
+	background-repeat:repeat x y;  
+	color:#FFF; 
+	vertical-align:middle;
+}
+table.list thead tr td.angle {
+	writing-mode: tb-rl;
+    filter: flipv fliph;
+	-webkit-transform: rotate(-90deg);	
+	-moz-transform: rotate(-90deg);
+	-ms-transform: rotate(-90deg);
+	-o-transform: rotate(-90deg);
+	transform: rotate(-90deg);	
+	height:125px;
+	*height:60px;
+	*width: 50px;
+	border:solid 1px #CCCCCC;
+	vertical-align:middle;
+	text-align:left;
+}
+table.list thead tr td.normal {
+	vertical-align:middle;
+	text-align:center;
+	border:solid 1px #CCCCCC;
+}
+table.list tbody tr td {
+	border:solid 1px #CCCCCC;
+}
+label.error {	
+	display:inline;
+}
+</style>
+<script>
+$(document).ready(function(){
+	// change the date format since the short format with / corrupts the urls
+	datepickerOpts.dateFormat = '<?php echo $config->dateandtime->javascriptmediumformat; ?>'; 
+	$("#startdate, #enddate").datepicker(datepickerOpts); 
+	$("#pricereport").validate({
+		errorPlacement: function(error, element) {			
+			if(element.attr("name") == "startdate"){
+				error.appendTo("#startdateerror");
+			}
+			if(element.attr("name") == "enddate" ){
+				error.appendTo("#enddateerror");
+			}				
+		},
+		rules: {
+			startdate: "required",		
+			enddate: {
+				"required": true, 					
+				enddateafterstartdate: true
+			}				
+		}, 
+		// the messages for each of the fields being validated
+		messages: {				
+			startdate: "Select a Start Date",			
+			enddate: {
+				"required": "Select an End Date"
+			},
+		}
+	});	
+	
+	$("#pricetype").change(function(){
+		if($(this).val() == "rp"){
+			//alert("show retail only");
+			$("tr:has(td.wholesale)").hide();
+			$("tr:has(td.retail)").show();
+			$(".wp_name").hide();
+			$(".wp_units").hide();
+		} 
+		if($(this).val() == "wp"){
+			//alert("show retail only");
+			$("tr:has(td.retail)").hide();
+			$("tr:has(td.wholesale)").show();
+			$(".wp_name").show();
+			$(".wp_units").show();
+		}		
+		if($(this).val() == ""){
+			//alert("show retail only");
+			$("tr:has(td.retail)").show();
+			$("tr:has(td.wholesale)").show();
+			$(".wp_name").hide();
+			$(".wp_units").hide();
+		}
+	});
+
+});
+</script>
+<?php if(isEmptyString($request->excel)) {	?>
+	<h2><?php echo $title; ?></h2>
+<?php } else { ?>
+	<?php 
+		if($request->startdate == $request->enddate){
+			$excltitle = "Market Prices Report: (".$request->startdate.")";
+		} else {
+			$excltitle = "Market Prices Report: (".$request->startdate." - ".$request->enddate.")";
+		}
+	?>
+	<h2><?php echo $excltitle; ?></h2>
+<?php } ?>
+<form action="<?php echo $this->baseUrl("report/marketprices"); ?>" method="get" id="pricereport">
+<?php if(isEmptyString($request->excel)) {	?>
+  <table class="reportfiltercontainer">
+    <tr>
+      <td><table class="reportfiltersection">
+          <tr>
+            <td class="label" width="30%">Start Date:<span class="requiredmark">*</span>        
+            	<input name="startdate"  id="startdate" type="text"  class="datefield startdate autosubmitsearchform" value="<?php echo $startdate; ?>" /></td>
+            <td class="label">End Date:<span class="requiredmark">*</span>
+            	<input name="enddate" id="enddate" type="text" class="datefield autosubmitsearchform"  value="<?php echo $enddate; ?>" /></td>
+          </tr>
+          <tr>
+		  	<td><div id="startdateerror"></div></td>
+            <td><div id="enddateerror"></div></td>           
+          </tr>
+          <tr>
+		  	<td><?php
+				$commoditycategorylist = new LookupType(); 
+				$commoditycategorylist->setName("ALL_COMMODITY_CATEGORIES");
+				$commoditycategorylistdropdown = new Zend_Form_Element_Select('c'.HTML_TABLE_COLUMN_SEPARATOR.'categoryid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'All Categories'), $commoditycategorylist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+									)
+								);
+				$commoditycategorylistdropdown->setValue($request->getParam('c'.HTML_TABLE_COLUMN_SEPARATOR.'categoryid')); 
+				echo $commoditycategorylistdropdown->render(); 
+			  ?>
+            <td><?php
+				$type = new Zend_Form_Element_Select('pricetype',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'All Prices', 'rp' => 'Retail Prices', 'wp' => 'Wholesale Prices')),
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('autosubmitsearchform','filterselect', 'chzn-select')
+									)
+								);
+				$type->setValue($request->getParam('pricetype')); 
+				echo $type->render(); 
+			  ?></td>
+          </tr>
+        </table></td>
+      <td align="left"><table>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="generate" title="Click here to Generate Report"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Generate Report</button>
+             <input type="hidden" name="generate" value="true" /></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php } ?>
+</form>
+<?php if (!isEmptyString($request->generate)) { ?>
+<?php
+	  	$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($current_results_query);
+	
+		$has_no_data = (count($result) == 0) ? true : false; 
+		
+		# This variable stores the number of redundant columns returned in the query so that when we are printing
+		# we are able to know how many columns to ignore. This variable is sent in the print URL
+		$number_of_redundant_columns = 3;
+		
+		# the columns which contain numbers in the invoice query
+		# Please note that the column count begins at 0
+		$export_number_column_list = "";
+
+		// show a message that there are no items to display
+		if ($has_no_data) {
+			$this->headTitle("No Data for this Report"); 
+	?>
+  <div class="norecords"><label class="error"><?php echo $this->translate("report_global_norecords_label"); ?></label></div>
+  <?php } else { ?>
+  <?php if(isEmptyString($request->excel)) {	?>      
+      <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->url(array_merge_maintain_keys(array(PAGE_CONTENTS_ONLY => 'true', EXPORT_TO_EXCEL => 'true'), $request->getQuery())); ?>"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <div id="listresults_div">
+    <table class="list">
+      <thead>
+      	<?php if(isEmptyString($request->excel)) {	?>
+      	<tr>
+        	<td class="heading" colspan="<?php echo 3+count($allmarkets); ?>">
+				<?php echo "Approved Prices Report from ".$request->startdate." to ".$request->enddate; ?>
+            </td>
+        </tr>
+        <?php } ?>
+        <tr>          
+          <td class="normal">Commodity<img src="<?php echo $this->baseUrl('images/spacer.gif'); ?>" width="100" height="1" /></td>
+          <td class="normal">Units</td>
+          <td class="normal">Values</td>
+          <td style="vertical-align:middle;">Overall<br />Average</td>
+          <?php 
+				foreach($allmarkets as $key => $market){
+		  ?>
+          <td class="angle"><?php echo str_replace(' Market', '', $market); ?></td>
+          <?php } ?>
+          
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+            	foreach($result as $line){							
+            ?>
+        <tr class="1">          
+          <td class="nowrapping" rowspan="2"><b><?php echo $line['name']; ?></b></td>
+          <td rowspan="2"><?php echo $line['units']; ?></td>
+          <td class="retail">R.P</td>
+          <td align="right"><b><?php echo formatNumber($line['overall_retail_avg']); ?></b></td>
+          <?php 		  	
+				foreach($allmarkets as $key => $market){					
+		  ?>
+          <td align="right"><?php echo formatNumber($line['retailprice_'.$key]); ?></td>
+          <?php } ?>
+          
+        </tr>
+        <tr class="2">          
+          <td class="wholesale">W.P</td>
+          <td align="right"><b><?php echo formatNumber($line['overall_wholesale_avg']); ?></b></td>
+          <?php 		  	
+				foreach($allmarkets as $key => $market){					
+		  ?>
+          <td align="right"><?php echo formatNumber($line['wholesaleprice_'.$key]); ?></td>
+          <?php } ?>
+          
+        </tr>
+        <?php 						
+        } // end processing results 
+    ?>
+      </tbody>
+    </table>
+  </div>
+  <?php			
+	 } // end check that there are results 
+   } // end check for generate action
+  ?>
+
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

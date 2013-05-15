@@ -1,0 +1,14 @@
+# the application environment - this is checked in the public/inex_includes.php file
+SetEnv APPLICATION_ENV production
+
+RewriteEngine On
+
+# the base for rewriting the files, this is relative to the document root being used 
+RewriteBase /
+
+# Rewrite conditions for the Front controller 
+RewriteCond %{REQUEST_FILENAME} -s [OR]
+RewriteCond %{REQUEST_FILENAME} -l [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^.*$ - [NC,L]
+RewriteRule ^.*$ index.php [NC,L]

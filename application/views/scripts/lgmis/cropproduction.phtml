@@ -1,0 +1,129 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("cropsector_pagetitle_list");
+	$this->headTitle($title);
+	
+	$location = new District();
+	$location->populate($request->id);	
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();
+	$paginate->setView($this);
+	$paginate->setItemCountPerPage(8); 
+	$paginate->processPost($request->getParams());
+	
+	$all_results_query = "SELECT c.id, c.commodityid, l.name AS `Location`, co.name AS `Commodity`, co.description, cs.seedsource AS `Source of Seeds`, c.seedcost AS `Cost of Seeds`, cs.pests AS `Pests`, cs.diseases AS `Diseases`, cs.creditsource AS `Source of Credit`, c.yieldperacre AS `Yield Per Acre`, c.startdate as startdate, c.enddate as enddate FROM cropproduction AS c 
+INNER JOIN location l ON (c.locationid = l.id) 
+INNER JOIN commodity co ON (c.commodityid = co.id) 
+INNER JOIN (SELECT cp.commodityid, MAX(cp.enddate) AS enddate FROM cropproduction cp WHERE cp.locationid = '".$request->id."' GROUP BY cp.commodityid) AS d ON (d.`enddate` = c.enddate AND c.commodityid = d.commodityid)
+LEFT JOIN cropsectorinformation cs ON (cs.commodityid = c.commodityid) 
+WHERE c.locationid = '".$request->id."' ORDER BY co.name";
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	
+	// debugMessage($current_results_query);
+	
+	$conn = Doctrine_Manager::connection(); 
+	$attr_result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($attr_result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";	
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.list {
+	width: 99%; 
+} 
+div#lgmis table.formtable {
+	margin-top: 0; 
+} 
+</style>
+<div id="lgmis">
+<?php require_once APPLICATION_PATH.'/views/scripts/lgmis/menu.phtml'; ?>
+<h1 class="pagetitle"><?php echo $title; ?></h1>
+<h2><?php echo $this->translate('lgmis_sector_overview'); ?></h2>
+<?php echo nl2br($location->getLocationDetail()->getCropProduction()); ?>
+<h2><?php echo $this->translate('lgmis_sector_information'); ?></h2>
+<form action="<?php echo $this->baseUrl("cropsector/listsearch"); ?>" method="get" id="lgmiscropsector">
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("cropsector_list_norecords"); ?></label>
+  <?php } else { ?>
+      <h2>Production Statistics between <?php echo changeMySQLDateToPageFormat($attr_result[0]['startdate'])." and ".changeMySQLDateToPageFormat($attr_result[0]['enddate'])?></h2>
+       <table class="list formtable">
+        <?php 	
+        		$validator = new Zend_Validate_File_Exists(); 
+				$validator->setDirectory(APPLICATION_PATH.('/../public/uploads/commodity')); 
+				
+				$count = 0; 			  		
+            	foreach($attr_result as $line){	
+					if ($count % 2 == 0) {
+        				echo "<tr>";
+    				}
+            ?>
+        	<td class="nowrapping" style="width: 460px;"><h3><?php echo $line['Commodity']; ?></h3>
+        	<?php if ($validator->isValid($line['commodityid'].'.jpg')) { ?>
+        			<img src="<?php echo $this->baseUrl('uploads/commodity/'.$line['commodityid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+        		<?php } ?>
+        	 <b><?php echo $this->translate("commodity_description_label"); ?>:</b>
+                <?php echo nl2br($line['description']); ?><br><br>
+                <b><?php echo $this->translate("cropproduction_costofseeds_label"); ?>:</b>
+                <?php echo $this->currency($line['Cost of Seeds']); ?><br><br>
+                
+               <b><?php echo $this->translate("cropproduction_yieldperacre_label"); ?>:</b>   
+				<?php echo $line['Yield Per Acre'].' kg/acre'; ?><br><br>
+                
+                <b><?php echo $this->translate("cropproduction_sourceofseeds_label"); ?>:</b>
+                <?php echo nl2br($line['Source of Seeds']).' per kg'; ?><br><br>
+                
+                <b><?php echo $this->translate("cropproduction_pests_label"); ?>:</b>
+                
+                <?php echo nl2br($line['Pests']); ?><br><br>
+                
+                <b><?php echo $this->translate("cropproduction_diseases_label"); ?>:</b>
+               <?php echo nl2br($line['Diseases']); ?><br><br>
+                
+                <b><?php echo $this->translate("cropproduction_sourceofcredit_label"); ?>: </b>
+                    <?php echo nl2br($line['Source of Credit']); ?><br><br>
+                </td>
+                <?php 
+						// do not close for the first row 	
+						if ($count % 2 == 1) {
+	        				echo "</tr>";
+	    				}		
+					// increment the counter
+					$count++; 
+            	} // end processing results 
+				// if the last record is odd then add a blank row
+				// and close the row 
+				if ($count % 2 == 1) {
+					echo "<td></td></tr>";
+				}	
+            ?>  
+    </table>
+    <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+  <?php			
+	} // end check that there are results    	
+?>
+</form>
+</div>

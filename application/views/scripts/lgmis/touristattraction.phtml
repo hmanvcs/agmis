@@ -1,0 +1,114 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("touristattraction_pagetitle_list");
+	$this->headTitle($title);
+	
+	$location = new District();
+	$location->populate($request->id);	
+	
+	$all_results_query = "SELECT t.id AS touristattractionid, t.name AS `Name`, t.physicallocation AS `Physical Location`, t.contact AS `Contact`, sc.name AS `Sub-County`, t.touristattractions AS `Tourist Attractions`, t.priceoffers AS `Price Offers`, t.accomodation AS `Accomodation`, t.entertainment AS `Entertainment`, t.transport AS `Transport`, t.booking AS `Booking`, t.tourpackages AS `Tour Packages`, t.otherservices AS `Other Services`, d.name as District  FROM touristattraction AS t INNER JOIN location sc ON t.subcountyid = sc.id INNER JOIN location d  WHERE t.districtid = '".$request->id."'GROUP BY t.id ORDER BY t.name";
+	
+
+	$conn = Doctrine_Manager::connection(); 
+	$attr_result = $conn->fetchAll($all_results_query);
+	$has_no_data = (count($attr_result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";	
+?>
+<style>
+#rightcolumn {
+	display:none;
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.list {
+	width: 99%; 
+} 
+div#lgmis table.formtable {
+	margin-top: 0; 
+} 
+</style>
+<div id="lgmis">
+<?php require_once APPLICATION_PATH.'/views/scripts/lgmis/menu.phtml'; ?>
+<h1 class="pagetitle"><?php echo $title; ?></h1>
+<h2><?php echo $this->translate('lgmis_sector_overview'); ?></h2>
+<?php echo nl2br($location->getLocationDetail()->getTourismSector()); ?>
+<h2><?php echo $this->translate('lgmis_sector_information'); ?></h2>
+
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("cropsector_list_norecords"); ?></label>
+  <?php } else { ?>
+       <table class="list formtable">
+        <?php 	
+        		$validator = new Zend_Validate_File_Exists(); 
+				$validator->setDirectory(APPLICATION_PATH.('/../public/uploads/tourism')); 
+				
+				$count = 0; 			  		
+            	foreach($attr_result as $line){	
+					if ($count % 2 == 0) {
+        				echo "<tr>";
+    				}
+            ?>
+        	<td class="nowrapping" style="width: 460px;"><h3><?php echo $line['Name']; ?></h3>
+        	<?php if ($validator->isValid($line['touristattractionid'].'.jpg')) { ?>
+        			<img src="<?php echo $this->baseUrl('uploads/tourism/'.$line['touristattractionid'].'.jpg'); ?>" class="floatleft commodityimage" style="margin-right: 10px;" />
+        		<?php } ?>
+        	 <b><?php echo $this->translate("touristattraction_subcounty_label"); ?>:</b>
+                <?php echo $line['Sub-County']; ?><br><br>
+                <b><?php echo $this->translate("touristattraction_physical_location_label"); ?>:</b>
+                <?php echo $line['Physical Location']; ?><br><br>
+                <b><?php echo $this->translate("touristattraction_contact_location_label"); ?>:</b>
+                <?php echo $line['Contact']; ?><br><br>
+                <b><?php echo $this->translate("touristattraction_tourist_attractions_label"); ?>:</b>
+                <?php echo nl2br($line['Tourist Attractions']); ?><br><br>
+                <b><?php echo $this->translate("touristattraction_price_offers_label"); ?>:</b>
+                <?php echo $line['Price Offers']; ?><br><br>
+                 <b><?php echo $this->translate("touristattraction_accomodation_label"); ?>:</b>
+                <?php echo nl2br($line['Accomodation']); ?><br><br>
+                 <b><?php echo $this->translate("touristattraction_entertainment_label"); ?>:</b>
+                <?php echo nl2br($line['Entertainment']); ?><br><br>
+                 <b><?php echo $this->translate("touristattraction_transport_label"); ?>:</b>
+                <?php echo nl2br($line['Transport']); ?><br><br>
+                <b><?php echo $this->translate("touristattraction_booking_label"); ?>:</b>
+                <?php echo nl2br($line['Booking']); ?><br><br>
+                <b><?php echo $this->translate("touristattraction_otherservices_label"); ?>:</b>
+                <?php echo nl2br($line['Other Services']); ?><br><br>
+                <b><?php echo $this->translate("touristattraction_tour_packages_label"); ?>:</b>
+                <?php echo nl2br($line['Tour Packages']); ?><br><br>
+                
+                </td>
+                <?php 
+						// do not close for the first row 	
+						if ($count % 2 == 1) {
+	        				echo "</tr>";
+	    				}		
+					// increment the counter
+					$count++; 
+            	} // end processing results 
+				// if the last record is odd then add a blank row
+				// and close the row 
+				if ($count % 2 == 1) {
+					echo "<td></td></tr>";
+				}	
+            ?>  
+    </table>
+  <?php			
+	} // end check that there are results    	
+?>
+
+</div>

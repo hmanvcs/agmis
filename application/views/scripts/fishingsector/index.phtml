@@ -1,0 +1,534 @@
+ <?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$fishsummary = new FishCatchSummary();	
+	
+	// default title
+	$title = $this->translate("fishingsector_pagetitle_indexlanding"); 
+	$posturl = $this->baseUrl($request->getControllerName()."/create");
+	$button_title = $this->translate("fishingsector_button_save"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$fishsummary->populate(decode($request->id));
+		$title = $this->translate("fishingsector_pagetitle_editlanding"); 
+		$button_title = $this->translate("fishingsector_button_edit");
+		$posturl = $this->baseUrl($request->getControllerName()."/edit");	
+	} else {
+		$fishsummary->setRecordedByID($userid);
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$fishsummary->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);
+	
+	# lookup for type
+	$boattype = new LookupType();
+	$boattype->setName("BOAT_TYPES");
+	$nettype = new LookupType();
+	$nettype->setName("NET_TYPES");
+	
+?>
+<style>
+#rightcolumn, .hidden_row {
+	display: none; 
+}
+#contentwrapper {
+	width: 950px;
+	border:solid 1px #CCCCCC;
+	border-top:none;
+	background-color:#FFFFFF;
+	background-image:none;
+}
+table.formtable {
+	width:100%;
+}
+table.formtable td.label {
+	vertical-align:middle;
+}
+table.formtable tr.sectionheading {
+	background-repeat:repeat; 
+} 
+div.pageinfo {
+	width:99%;
+}
+table.formtable tbody#catchdetail tr td {
+	text-align:center;
+	padding-left:0;
+}
+tr.bolded td {
+	text-align:center;
+	font-weight:bold;
+}
+select.tinyselect {
+	width:40px;
+}
+input.tinyinput {
+	width:35px;
+	height:20px;
+	height:20px !important;
+}
+select.chzn-select {
+	min-width:200px;
+}
+</style>
+<script>
+	$(document).ready(function() {
+		
+		datepickerOpts.maxDate = new Date();   
+		$("#daterecorded").datepicker(datepickerOpts); 
+		
+		$("#fishcatchform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				waterbodyid: "required",
+				landingsiteid: "required",
+				districtid: "required",
+				daterecorded: "required",
+				recordededbyid: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				waterbodyid: "<?php echo $this->translate("fishingsector_waterbodyid_error"); ?>",
+				landingsiteid: "<?php echo $this->translate("fishingsector_landingsiteid_error"); ?>",
+				districtid: "<?php echo $this->translate("fishingsector_districtid_error"); ?>",
+				daterecorded: "<?php echo $this->translate("fishingsector_daterecorded_error"); ?>",			
+				recordededbyid: "<?php echo $this->translate("fishingsector_recordededbyid_error"); ?>"
+			},
+			// custom error positions
+			errorPlacement: function(error, element) {
+				switch(element.attr("name")){
+					case 'waterbodyid':
+						error.appendTo("#waterbodyid_error")
+						break;
+					case 'landingsiteid':
+						error.appendTo("#landingsiteid_error")
+						break;		
+					case 'districtid':
+						error.appendTo("#districtid_error")
+						break;
+					case 'daterecorded':
+						error.appendTo("#daterecorded_error")
+						break;	
+					case 'recordededbyid':
+						error.appendTo("#recordededbyid_error")
+						break;										
+					default:
+						error.insertAfter(element);
+						break;
+				}			
+			}
+		});
+		
+		// auto populate the district for the landingsite
+		$("#landingsiteid").change(function(){
+			$.get("<?php echo $this->baseUrl('fishingsector/populatedistrict'); ?>", 
+			   {landingsiteid: $(this).val(),				
+				// parameters for the request along with a cachebuster to stop IE from caching the request
+				cachebuster: new Date().getTime()}, 			   
+				function(data){			
+					// alert(data);			
+					// set data returned to a JSON object					
+					data = jQuery.parseJSON(data);				
+					// alert(data.districtid);
+					if(data.districtid == ''){			
+						$('#districtid').val('');
+						$("#districtid").trigger("liszt:updated");		
+					} else {
+						$("#districtid option[value='"+data.districtid+"']").attr('selected', 'selected');
+						$("#districtid").trigger("liszt:updated");
+					}			
+				}
+			);
+		});
+		
+		
+		<?php 
+		 	for($j=1; $j <= $config->locationstatistic->maximumrows; $j++){
+		 ?>	
+		 	$('span#totalweight_<?php echo $j; ?>').html($('input.weight_<?php echo $j; ?>').sumValues());
+		 	$('input.weight_<?php echo $j; ?>').bind('keyup', function() {
+				$('span#totalweight_<?php echo $j; ?>').html($('input.weight_<?php echo $j; ?>').sumValues());
+			});		 	
+			
+		<?php } ?>
+		
+		// when a user clicks add new display the first hidden firm which is not shown
+		$(".addrule").click(showNewRule);		
+		function showNewRule() {			
+			$(".hidden_row:first").removeClass("hidden_row").addClass("visible_row");	
+			
+			// remove disabled attr from the fields
+			$("tr.visible_row input").attr("disabled", false);
+			$("tr.visible_row select").attr("disabled", false);	
+				
+			//if the maximum no of rows is added, hide the link to add another row
+			if ($("tr.visible_row").size() == <?php echo $config->locationstatistic->maximumrows; ?>) {
+				$(this).hide();	
+			} else {
+				$(this).show();	
+			}				
+			
+			// reset height of content column
+			
+		}		
+		
+		// delete rules
+		$(".remove").click(function(){			
+			var row_to_hide = $(this).attr('id');
+			if(window.confirm("Are you sure you want to remove this row? \n Click 'OK' to confirm or 'Cancel' to stay on this page.")){
+				$("tr.visible_row").has('a#'+row_to_hide).addClass("hidden_row").removeClass("visible_row");
+				
+				// $("input, select").attr("disabled", true);	
+				$("tr."+row_to_hide+" input").val('').attr("disabled", true);
+				$("tr."+row_to_hide+" select").val('').attr("disabled", true);	
+				//if the maximum no of rows is added, hide the link to add another row
+				if ($("tr.visible_row").size() == <?php echo $config->locationstatistic->maximumrows; ?>) {
+					$("#addrule").hide();	
+				} else {
+					$("#addrule").show();	
+				}			
+			} else {
+				return false;
+			}
+		});	
+		
+		// disable input and select in hidden rows
+		$("tr.hidden_row input").attr("disabled", true);
+		$("tr.hidden_row select").attr("disabled", true);	
+		
+	}); 
+	
+	// sum inputs
+	$.fn.sumValues = function() {
+		var sum = 0; 
+		this.each(function() {
+			if ( $(this).is(':input') ) {
+				var val = $(this).val();
+			} else {
+				var val = $(this).text();
+			}
+			sum += parseFloat( ('0' + val).replace(/[^0-9-\.]/g, ''), 10 );
+		});
+		return sum;
+	};
+	
+	// check that price is a valid number
+	function IsValidAmount(value){
+		var ValidChars = "0123456789.";
+		var valid=true;
+		var Char;
+		
+		for (i = 0; i < value.length && valid == true; i++){ 
+			Char = value.charAt(i); 
+			if (ValidChars.indexOf(Char) == -1) {
+				valid = false;
+			}
+		}
+		return valid;
+	}
+</script>
+<h2><?php echo $title; ?></h2>
+<form id="fishcatchform" action="<?php echo $posturl; ?>" method="post">
+  <div class="pageinfo"><?php echo $this->translate("fishingsector_landing_view_info"); ?></div>
+    <table class="formtable">
+        <tfoot>
+            <tr>
+            	<td class="topbuttons">
+                	<a href="<?php echo $this->baseUrl("fishingsector/list"); ?>" title="<?php echo $this->translate("global_button_cancel"); ?>"><?php echo $this->translate("global_button_cancel"); ?></a>&nbsp;&nbsp;                    
+        			<a href="javascript: doNothing();" class="positiveaction addrule" title="<?php echo $this->translate("fishingsector_button_addmore"); ?>"><img src="<?php echo $this->baseUrl("images/add.png"); ?>" /><?php echo $this->translate("fishingsector_button_addmore"); ?></a>&nbsp;&nbsp;
+          			<button type="submit" class="positiveaction save" name="save" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+                    <input type="hidden" name="entityname" value="FishCatchSummary" />                    
+                    <input type="hidden" id="id" name="id" value="<?php echo encode($fishsummary->getID()); ?>" />
+                    <input type="hidden" name="rowcount" id="rowcount" value="<?php echo $config->locationstatistic->maximumrows; ?>" />
+            	</td>
+            </tr>
+        </tfoot>
+    </table>
+	<?php if ($sessionhaserror) { ?>
+    	<label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label>
+    <?php } ?>
+    <table class="formtable">
+        <tr class="sectionheading">
+        	<td colspan="4"><?php echo $this->translate("fishingsector_section_summary"); ?></td>
+        </tr>
+        <tr>
+        	<td class="label"><?php echo $this->translate("fishingsector_waterbody_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        	<td><?php 	
+					$waterbody = new Zend_Form_Element_Select('waterbodyid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getWaterBodies()),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('chzn-select')
+									)
+								);
+					
+					$waterbody->setValue($fishsummary->getLandingSite()->getWaterBodyID());				
+					echo $waterbody->render();	
+			?><div id="waterbodyid_error"></div></td>
+            <td class="label"><?php echo $this->translate("fishingsector_bmu_label"); ?>: </td>
+        	<td><input type="text" name="bmu" id="bmu" value="" /></td>
+        </tr>
+        <tr>
+        	<td class="label"><?php echo $this->translate("fishingsector_landingsite_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+            <td><?php 	
+					$landingsite = new Zend_Form_Element_Select('landingsiteid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getLandingSitesForLocation("")),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('chzn-select')
+									)
+								);
+					
+					$landingsite->setValue($fishsummary->getLandingSiteID());				
+					echo $landingsite->render();	
+			?><div id="landingsiteid_error"></div></td>
+        	<td class="label"><?php echo $this->translate("fishingsector_district_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        	<td><?php 
+					$districtlookup = new LookupType;
+					$districtlookup->setName("ALL_DISTRICTS"); 
+					$districtropdown = new Zend_Form_Element_Select('districtid',
+						array(
+							'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlookup->getOptionValuesFromQuery()),	
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper'),
+							'class' => array('chzn-select')
+						)
+					);
+					$districtropdown->setValue($fishsummary->getDistrictID());					
+					echo $districtropdown->render();
+				?><div id="districtid_error"></div></td>       
+        </tr>        
+        <tr>
+        	<td class="label"><?php echo $this->translate("fishingsector_daterecorded_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        	<td><input type="text" name="daterecorded" id="daterecorded" class="datefield" value="<?php echo changemySQlDatetoPageFormat($fishsummary->getDateRecorded()); ?>" /><div id="daterecorded_error"></div></td>
+            <td class="label"><?php echo $this->translate("fishingsector_recordedby_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        	<td><input type="hidden" name="recordedbyid" id="recordedbyid" value="<?php echo $fishsummary->getRecordedByID(); ?>" /><?php echo $fishsummary->getRecordedBy()->getName(); ?>
+            </td>
+        </tr>
+    </table>
+    <table class="formtable">
+        <tr class="sectionheading">
+        	<td colspan="21"><?php echo $this->translate("fishingsector_section_detail"); ?></td>
+        </tr>
+        <tr class="bolded">        	
+        	<td colspan="6"><?php echo $this->translate("fishingsector_fishingunit_column"); ?></td>
+            <td colspan="15"><?php echo $this->translate("fishingsector_fishingnoandweight_column"); ?></td>
+        </tr>
+        <tr class="bolded">        	
+        	<td colspan="3"><?php echo $this->translate("fishingsector_boats_column"); ?></td>
+            <td colspan="3"><?php echo $this->translate("fishingsector_methods_column"); ?></td>
+            <td colspan="2"><?php echo $this->translate("fishingsector_mputa_column"); ?></td>
+            <td colspan="2"><?php echo $this->translate("fishingsector_ngege_column"); ?></td>
+            <td colspan="2"><?php echo $this->translate("fishingsector_mukene_column"); ?></td>
+            <td colspan="2"><?php echo $this->translate("fishingsector_mamba_column"); ?></td>
+            <td colspan="2"><?php echo $this->translate("fishingsector_male_column"); ?></td>
+            <td colspan="2"><?php echo $this->translate("fishingsector_othertilapia_column"); ?></td>
+            <td colspan="2"><?php echo $this->translate("fishingsector_other_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_total_column"); ?></td>
+        </tr>
+        <tr>
+        	<td style="width:30px;"></td>
+            <td style="width:30px;">#</td>
+            <td><?php echo $this->translate("fishingsector_type_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_type_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_hooksize_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_number_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_weight_column"); ?></td>
+            <td><?php echo $this->translate("fishingsector_weighttitle_column"); ?></td>
+        </tr>
+        <tbody id="catchdetail">
+        <?php 
+			$landingdetails = $fishsummary->getFishCatchDetails();
+			// debugMessage($landingdetails->toArray());			
+			// count the number of existing rows
+			$noofrows = $landingdetails->count();
+			$e = 1;
+			foreach($landingdetails as $catchdetail){					
+		?>
+        <tr class="visible_row row_<?php echo $e; ?>">
+        	<td valign="middle"><a href="javascript: doNothing();" title="Remove Row" id="row_<?php echo $e; ?>" class="remove"><img width="12" src="<?php echo $this->baseUrl('images/cross.png'); ?>" /></a></td>
+        	<td><?php echo $e; ?></td>
+            <td><?php 	
+					$boattype = new Zend_Form_Element_Select('boatid_'.$e,
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '---'), getBoatsForLocation("")),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('tinyselect')
+									)
+								);
+					
+					$boattype->setValue($catchdetail->getBoatID());				
+					echo $boattype->render();	
+			?></td>
+            <td><?php			 			
+					$mtype = new Zend_Form_Element_Select('nettype_'.$e,
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '---'),  $nettype->getOptionValues()),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('tinyselect')
+									)
+								);
+					
+					$mtype->setValue($catchdetail->getNetType());				
+					echo $mtype->render();	
+			?></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="hooksize_<?php echo $e; ?>" id="hooksize_<?php echo $e; ?>" value="<?php echo $catchdetail->getHookSize(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="hookno_<?php echo $e; ?>" id="hookno_<?php echo $e; ?>" value="<?php echo $catchdetail->getHookNo(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="mputacount_<?php echo $e; ?>" id="mputacount_<?php echo $e; ?>" value="<?php echo $catchdetail->getMputaCount(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?> weight_<?php echo $e; ?>" name="mputaweight_<?php echo $e; ?>" id="mputaweight_<?php echo $e; ?>" value="<?php echo $catchdetail->getMputaWeight(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="ngegecount_<?php echo $e; ?>" id="ngegecount_<?php echo $e; ?>" value="<?php echo $catchdetail->getNgegeCount(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?> weight_<?php echo $e; ?>" name="ngegeweight_<?php echo $e; ?>" id="ngegeweight_<?php echo $e; ?>" value="<?php echo $catchdetail->getNgegeWeight(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="mukenecount_<?php echo $e; ?>" id="mukenecount_<?php echo $e; ?>" value="<?php echo $catchdetail->getMukeneCount(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?> weight_<?php echo $e; ?>" name="mukeneweight_<?php echo $e; ?>" id="mukeneweight_<?php echo $e; ?>" value="<?php echo $catchdetail->getMukeneWeight(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="mambacount_<?php echo $e; ?>" id="mambacount_<?php echo $e; ?>" value="<?php echo $catchdetail->getMambaCount(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?> weight_<?php echo $e; ?>" name="mambaweight_<?php echo $e; ?>" id="mambaweight_<?php echo $e; ?>" value="<?php echo $catchdetail->getMambaWeight(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="malecount_<?php echo $e; ?>" id="malecount_<?php echo $e; ?>" value="<?php echo $catchdetail->getMaleCount(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?> weight_<?php echo $e; ?>" name="maleweight_<?php echo $e; ?>" id="maleweight_<?php echo $e; ?>" value="<?php echo $catchdetail->getMaleWeight(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="othertilapiacount_<?php echo $e; ?>" id="othertilapiacount_<?php echo $e; ?>" value="<?php echo $catchdetail->getOtherTilapiaCount(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?> weight_<?php echo $e; ?>" name="othertilapiaweight_<?php echo $e; ?>" id="othertilapiaweight_<?php echo $e; ?>" value="<?php echo $catchdetail->getOtherTilapiaWeight(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?>" name="othercount_<?php echo $e; ?>" id="othercount_<?php echo $e; ?>" value="<?php echo $catchdetail->getOtherCount(); ?>" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $e; ?> weight_<?php echo $e; ?>" name="otherweight_<?php echo $e; ?>" id="otherweight_<?php echo $e; ?>" value="<?php echo $catchdetail->getOtherWeight(); ?>" /></td>
+            <td><b><span class="rowtotal" id="totalweight_<?php echo $e; ?>">0</span></b>
+            <input type="hidden" name="mputaid_<?php echo $e; ?>" id="mputaid_<?php echo $e; ?>" value="<?php echo $catchdetail->getMputaID(); ?>" />
+            <input type="hidden" name="ngegeid_<?php echo $e; ?>" id="ngegeid_<?php echo $e; ?>" value="<?php echo $catchdetail->getNgegeID(); ?>" />
+            <input type="hidden" name="mukeneid_<?php echo $e; ?>" id="mukeneid_<?php echo $e; ?>" value="<?php echo $catchdetail->getMukeneID(); ?>" />
+            <input type="hidden" name="mambaid_<?php echo $e; ?>" id="mambaid_<?php echo $e; ?>" value="<?php echo $catchdetail->getMambaID(); ?>" />
+            <input type="hidden" name="maleid_<?php echo $e; ?>" id="maleid_<?php echo $e; ?>" value="<?php echo $catchdetail->getMaleID(); ?>" />
+            <input type="hidden" name="othertilapiaid_<?php echo $e; ?>" id="othertilapiaid_<?php echo $e; ?>" value="<?php echo $catchdetail->getOtherTilapiaID(); ?>" />
+            <input type="hidden" name="otherid_<?php echo $e; ?>" id="otherid_<?php echo $e; ?>" value="<?php echo $catchdetail->getOtherID(); ?>" />            
+            
+            <script>
+				$(document).ready(function(){
+					// Add validation rules for number fields on each line
+					$.validator.addClassRules("valid_number_<?php echo $e; ?>", {
+						validate_number_<?php echo $e; ?>: true				
+					});
+					// Validate the price amount
+					$.validator.addMethod("validate_number_<?php echo $e; ?>", function(value, element) {				
+						// only digits and numbers allowed
+						if(!IsValidAmount(value)){
+							return false;
+						}
+						return true;
+					}, "<?php echo $this->translate("fishingsector_invalid_error");?>");		
+				});
+			</script>
+            </td>
+        </tr>               
+        <?php $e++;
+			}
+		 ?>         
+         <?php 
+		 	for($p=$e; $p <= $config->locationstatistic->maximumrows; $p++){
+				$class = "visible_row";				
+				if($p > $noofrows+5){
+					$class = "hidden_row";
+				} 
+				
+		 ?>
+         <tr class="<?php echo $class; ?>">
+         	<td valign="middle"><a href="javascript: doNothing();" title="Remove Row" id="row_<?php echo $p; ?>" class="remove"><img width="12" src="<?php echo $this->baseUrl('images/cross.png'); ?>" /></a></td>
+        	<td><?php echo $p; ?></td>
+            <td><?php 	
+					$boattype = new Zend_Form_Element_Select('boatid_'.$p,
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '---'), getBoatsForLocation("")),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('tinyselect')
+									)
+								);
+					
+					$boattype->setValue('');				
+					echo $boattype->render();	
+			?></td>
+            <td><?php			 			
+					$mtype = new Zend_Form_Element_Select('nettype_'.$p,
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '---'),  $nettype->getOptionValues()),								
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('tinyselect')
+									)
+								);
+					
+					$mtype->setValue('');				
+					echo $mtype->render();	
+			?></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="hooksize_<?php echo $p; ?>" id="hooksize_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="hookno_<?php echo $p; ?>" id="hookno_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="mputacount_<?php echo $p; ?>" id="mputacount_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?> weight_<?php echo $p; ?>" name="mputaweight_<?php echo $p; ?>" id="mputaweight_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="ngegecount_<?php echo $p; ?>" id="ngegecount_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?> weight_<?php echo $p; ?>" name="ngegeweight_<?php echo $p; ?>" id="ngegeweight_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="mukenecount_<?php echo $p; ?>" id="mukenecount_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?> weight_<?php echo $p; ?>" name="mukeneweight_<?php echo $p; ?>" id="mukeneweight_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="mambacount_<?php echo $p; ?>" id="mambacount_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?> weight_<?php echo $p; ?>" name="mambaweight_<?php echo $p; ?>" id="mambaweight_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="malecount_<?php echo $p; ?>" id="malecount_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?> weight_<?php echo $p; ?>" name="maleweight_<?php echo $p; ?>" id="maleweight_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="othertilapiacount_<?php echo $p; ?>" id="othertilapiacount_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?> weight_<?php echo $p; ?>" name="othertilapiaweight_<?php echo $p; ?>" id="othertilapiaweight_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?>" name="othercount_<?php echo $p; ?>" id="othercount_<?php echo $p; ?>" value="" /></td>
+            <td><input type="text" class="tinyinput valid_number_<?php echo $p; ?> weight_<?php echo $p; ?>" name="otherweight_<?php echo $p; ?>" id="otherweight_<?php echo $p; ?>" value="" /></td>
+            <td><b><span class="rowtotal" id="totalweight_<?php echo $p; ?>">0</span></b>
+            <input type="hidden" name="mputaid_<?php echo $p; ?>" id="mputaid_<?php echo $p; ?>" value="177" />
+            <input type="hidden" name="ngegeid_<?php echo $p; ?>" id="ngegeid_<?php echo $p; ?>" value="178" />
+            <input type="hidden" name="mukeneid_<?php echo $p; ?>" id="mukeneid_<?php echo $p; ?>" value="179" />
+            <input type="hidden" name="mambaid_<?php echo $p; ?>" id="mambaid_<?php echo $p; ?>" value="180" />
+            <input type="hidden" name="maleid_<?php echo $p; ?>" id="maleid_<?php echo $p; ?>" value="181" />
+            <input type="hidden" name="othertilapiaid_<?php echo $p; ?>" id="othertilapiaid_<?php echo $p; ?>" value="182" />
+            <input type="hidden" name="otherid_<?php echo $p; ?>" id="otherid_<?php echo $p; ?>" value="183" />            
+            <script>
+				$(document).ready(function(){
+					// Add validation rules for number fields on each line
+					$.validator.addClassRules("valid_number_<?php echo $p; ?>", {
+						validate_number_<?php echo $p; ?>: true				
+					});
+					// Validate the price amount
+					$.validator.addMethod("validate_number_<?php echo $p; ?>", function(value, element) {				
+						// only digits and numbers allowed
+						if(!IsValidAmount(value)){
+							return false;
+						}
+						return true;
+					}, "<?php echo $this->translate("fishingsector_invalid_error");?>");		
+				});
+			</script>
+            </td>
+        </tr>
+        <?php } ?>
+        </tbody>
+    </table>
+    <table class="formtable <?php echo $hide_on_print_class; ?> formactions">
+        <tfoot>
+          <tr>
+            <td class="bottombuttons"></td>
+          </tr>
+        </tfoot>
+    </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

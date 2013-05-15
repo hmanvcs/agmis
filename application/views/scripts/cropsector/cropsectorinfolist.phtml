@@ -1,0 +1,97 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("cropsector_pagetitle_list");
+	$this->headTitle($title);
+	
+	
+	$request->setParam('c__locationid', decode($request->locationid));	
+		
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("l.name"));
+	$paginate->setDefaultSortBy("co.name");	
+	$paginate->setFilterColumns(array("l.locationid"));
+	
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT c.id, l.name AS `Location`, co.name AS `Commodity`, c.seedsource AS `Source of Seeds`,  c.pests AS `Pests`, c.diseases AS `Diseases`, c.creditsource AS `Source of Credit` FROM cropsectorinformation AS c LEFT JOIN location l ON (c.locationid = l.id) LEFT JOIN commodity co ON (c.commodityid = co.id) WHERE c.id <>'' ".$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";	
+?>
+
+<form action="<?php echo $this->baseUrl("cropsector/cropsectorinfolist/listsearch"); ?>" method="get" id="cropsectorinfolistform">
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("cropsector_list_norecords"); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("cropsector_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="listresults_div">
+    <h2><?php echo $title; ?></h2>
+    <table class="list">
+      <thead>
+        <tr>
+          <td align="left" style="width:200px;"><?php echo $this->translate("cropsector_commodity_label"); ?></td>
+          <td align="left"><?php echo $this->translate("cropsector_seedsource_label"); ?></td>
+          <td align="left"><?php echo $this->translate("cropsector_pests_label"); ?></td>
+          <td align="left"><?php echo $this->translate("cropsector_diseases_label"); ?></td>
+          <td align="left"><?php echo $this->translate("cropsector_creditsource_label"); ?></td>
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+            	foreach($result as $line){							
+            ?>
+        <tr>
+          <td class="nowrapping"><b><?php echo $line['Commodity']; ?></b></td>
+          <td class="nowrapping"><?php echo $line['Source of Seeds']; ?></td>
+          <td class="nowrapping"><?php echo $line['Pests']; ?></td>
+          <td class="nowrapping"><?php echo $line['Diseases']; ?></td>
+          <td class="nowrapping"><?php echo $line['Source of Credit']; ?></td>
+        </tr>
+        <?php 						
+            	} // end processing results 
+            ?>
+      </tbody>
+      <?php if ($acl->checkPermission('Crop Production Information', ACTION_EDIT)) { ?>
+      <tr>
+        <td align="center" colspan="5"><a href="<?php echo $this->baseUrl("cropsector/cropsectorinfo/locationid/".$request->locationid); ?>" class="positiveaction" title="<?php echo $this->translate("cropsectorinfo_button_update"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("cropsectorinfo_button_update"); ?></a></td>
+      </tr>
+      <?php } ?>
+    </table>
+  </div>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

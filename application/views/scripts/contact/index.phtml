@@ -1,0 +1,366 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$contact = new Contact(); 
+	
+	if (isApplicationLGMIS()) {
+		$contact->setLocationID($session->getVar('districtid')); 
+	}
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("contact_pagetitle_new"); 
+	$posturl = $this->baseUrl($request->getControllerName()."/create");
+	$button_title = $this->translate("contact_button_new"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$contact->populate(decode($request->id));
+		$title = sprintf($this->translate("contact_pagetitle_edit"), $contact->getName()); 
+		$button_title = $this->translate("contact_button_edit");
+		$posturl = $this->baseUrl($request->getControllerName()."/edit");	
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$contact->processPost($session->getVar(FORM_VALUES));	
+	}
+		
+	$this->headTitle($title);  
+	
+	# lookup for salutations
+	$categorylookup = new LookupType();
+	$categorylookup->setName("ALL_BUSINESS_DIRECTORY_CATEGORIES");
+?>
+<script>
+	$(document).ready(function() {
+		$("#contactform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				firstname: "required",
+				lastname: "required",
+				orgname: "required",
+				phone: "required",					
+				gender: "required",
+				salutation: "required",								
+				email: {
+					required:false,
+					email: true
+				},
+				"contact_categoryid[]": {
+					required: true,
+					minlength: 1
+				},
+				address: "required",
+				locationid: "required",
+				businessdescription:"required"			
+			}, 
+			// the messages for each of the fields being validated
+			messages: {
+				firstname: "<?php echo $this->translate("contact_firstname_error"); ?>",
+				lastname: "<?php echo $this->translate("contact_lastname_error"); ?>",
+				orgname: "<?php echo $this->translate("contact_orgname_error"); ?>",
+				phone: "<?php echo $this->translate("contact_phone_error"); ?>",
+				gender: "<?php echo $this->translate("contact_gender_error"); ?>",
+				salutation: "<?php echo $this->translate("contact_salutation_error"); ?>",		
+				email: {					
+					email: "<?php echo $this->translate("contact_invalid_email_error"); ?>"
+				},
+				"contact_categoryid[]": {
+					required: "<?php echo $this->translate("contact_category_error"); ?>",
+					minlength: "<?php echo $this->translate("contact_category_error"); ?>"
+				},
+				address: "<?php echo $this->translate("contact_address_error"); ?>",
+				locationid: "<?php echo $this->translate("contact_district_error"); ?>",
+				businessdescription: "<?php echo $this->translate("contact_businessdescription_error"); ?>"
+			}
+		});
+		
+		//trigger a click action on the selected radio button to enable and disable the approprate fields
+		<?php if($contact->getContactType() == "1"){ ?>
+			// show the person only fields			
+			disableContainerByClass("company");	
+			enableContainerByClass("person");
+		<?php } else { ?>		
+			// show the company only fields			
+			disableContainerByClass("person");
+			enableContainerByClass("company");
+		<?php } ?>
+		
+		// when the person contact is selected, hide the contact tbody and disable all inputs in it
+		$("#contacttype-1").click(function() {
+			// hide the company rows, disable any HTML controls. Enable the person rows and enable all controls in those rows
+			disableContainerByClass("company");	
+			enableContainerByClass("person");
+		});
+		
+		// when the company contact is selected, hide the person tbody and disable all inputs in it
+		$("#contacttype-2, #contacttype-3, #contacttype-4, #contacttype-5").click(function() {
+			// hide the person rows, disable any HTML controls. Enable the company rows and enable all controls in those rows
+			enableContainerByClass("company");	
+			disableContainerByClass("person");
+		});	
+		
+		// add one category input when page loads
+		showCategory();
+		// add more rows for a new firm on click
+		$(".addcategory").click(function(){
+			showCategory();
+		});
+		// when a user clicks add new display the first hidden firm which is not shown
+		function showCategory() {
+			// alert('showing hidden');			
+			$("input.hidden_cat:first").removeClass("hidden_cat").addClass("visible_cat");
+		}
+		
+		// the services to be advertised should be displayed if wish to advertise is selected
+		<?php if($contact->getWishToAdvertise() == 1){ ?>
+			$("#advertised").removeClass("hidden");
+		<?php } ?>
+		//initialise the date of registration
+		datepickerOpts.maxDate = new Date();   
+		$("#dateofregistration").datepicker(datepickerOpts); 	
+		
+	}); 
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("contact_page_info"); ?></div>
+<form id="contactform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <?php if(isEmptyString($contact->getID())){ ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_contactytype_label"); ?></td>
+      <td><?php 	
+			# lookup for contact types
+			$contacttype = new LookupType();
+			$contacttype->setName("ALL_CONTACT_TYPES");
+			
+			$con = new Zend_Form_Element_Radio('contacttype',
+							array(
+								'multiOptions' => array("1" => "Person", "2" => "Company", "3" => "Cooperative", "4" => "Association", "5" => "
+Parastatal"), 
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper')
+							)
+						);
+			$con->setSeparator(' ');
+			$con->setValue($contact->getContactType());				
+			echo $con->render();	
+		?></td>
+    </tr>
+    <?php } else { ?>
+    <input type="hidden" id="contacttype" name="contacttype" value="<?php echo $contact->getContactType(); ?>" />
+    <?php } ?>
+    <tr>
+      <td></td>
+      <td class="label"><?php echo $this->translate("contact_personal_information_section"); ?></td>
+    </tr>
+    <tbody class="person">
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_salutation_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+        <td><?php 	
+				# lookup for salutations
+				$salutation = new LookupType();
+				$salutation->setName("SALUTATION");
+	
+				$saln = new Zend_Form_Element_Select('salutation',
+								array(
+									'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $salutation->getOptionValues()),								
+									'view' => new Zend_View(),
+									'decorators' => array('ViewHelper')
+								)
+							);
+				
+				$saln->setValue($contact->getSalutation());				
+				echo $saln->render();	
+			?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_gender_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+        <td><?php 	
+				$gen = new Zend_Form_Element_Select('gender',
+								array(
+									'multiOptions' => array('' => '<Select One>', 'M' => 'Male', 'F' => 'Female'),								
+									'view' => new Zend_View(),
+									'decorators' => array('ViewHelper')
+								)
+							);
+				$gen->setValue($contact->getGender());				
+				echo $gen->render();	
+			?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_firstname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+        <td><input type="text" name="firstname" id="firstname" value="<?php echo $contact->getFirstName(); ?>" /></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_lastname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+        <td><input type="text" name="lastname" id="lastname" value="<?php echo $contact->getLastName(); ?>" /></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_othernames_label"); ?>:</td>
+        <td><input type="text" name="othernames" id="othernames" value="<?php echo $contact->getOtherNames(); ?>" /></td>
+      </tr>
+      
+    </tbody>
+    <tbody class="company">
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_companyname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+        <td><input type="text" name="orgname" id="orgname" value="<?php echo $contact->getOrgName(); ?>" />
+          
+         </td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_contactperson_label"); ?>:</td>
+        <td><input type="text" name="contactperson" id="contactperson" value="<?php echo $contact->getContactPerson(); ?>" /></td>
+      </tr>
+    </tbody>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_phone_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="phone" id="phone" class="shortinput" value="<?php echo $contact->getPhone(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_altphone_label"); ?>:</td>
+      <td><input type="text" name="phone2" id="phone2" class="shortinput" value="<?php echo $contact->getPhone2(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_email_label"); ?>:</td>
+      <td><input type="text" name="email" id="email" value="<?php echo $contact->getEmail(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_address_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="expanding" id="address" name="address"><?php echo $contact->getAddress(); ?></textarea></td>
+    </tr>
+    <tbody class="person">
+    <tr>
+        <td class="label"><?php echo $this->translate("contact_idorpassportno_label"); ?>:</td>
+        <td><input type="text" name="idorpassportno" id="idorpassportno" value="<?php echo $contact->getIDOrPassportNo(); ?>" /></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_driverlicenceno_label"); ?>:</td>
+        <td><input type="text" name="driverlicenceno" id="driverlicenceno" value="<?php echo $contact->getDriverLicenceNo(); ?>" /></td>
+      </tr>
+    </tbody>
+    <tr>
+      <td></td>
+      <td class="label"><?php echo $this->translate("contact_business_information_section"); ?></td>
+    </tr>
+    <?php if (!isApplicationLGMIS()) {
+    		// hide the districtt for LGMIS users
+    ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_district_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+       <td><?php
+      	$districtlist = new LookupType(); 
+      	$districtlist->setName("ALL_DISTRICTS");
+       	$districtdropdown = new Zend_Form_Element_Select('locationid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+		$districtdropdown->setValue($contact->getLocationID()); 
+		echo $districtdropdown->render(); 
+      ?></td>
+    </tr>
+    <?php } ?>
+   
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_dateofregistration_label"); ?>:</td>
+      <td><input type="text" name="dateofregistration" id="dateofregistration" class="datefield" value="<?php echo changemySQlDatetoPageFormat($contact->getDateOfRegistration()); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_tradinglicence_label"); ?>: </td>
+      <td>          
+          <input type="text" name="licenceno" id="licenceno" class="shortinput" value="<?php echo $contact->getLicenceNo(); ?>" />
+        </div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_vatnumber_label"); ?>:</td>
+      <td><input type="text" name="vatnumber" id="vatnumber" value="<?php echo $contact->getVATNumber(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_tinnumber_label"); ?>:</td>
+      <td><input type="text" name="tinnumber" id="tinnumber" value="<?php echo $contact->getTINNumber(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_businessdirectorycategory_label"); ?>:</td>
+      <td >
+        <?php 
+	  		
+			
+			$cat = new Zend_Form_Element_MultiCheckbox('contact_categoryid',
+    					array(							
+							'multiOptions' => $categorylookup->getOptionValuesFromQuery(),								
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper')
+						)
+    				);					
+    		$cat->setValue($contact->getCategoryIDs()); 
+			$cat->setSeparator(' ');
+    		echo $cat->render();			
+	  ?>
+        
+        </td>
+    </tr>
+    <tbody class="company">
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_numberofpeopleemployed_label"); ?>:</td>
+        <td><b><?php echo $this->translate("contact_numberofmale_label"); ?></b> &nbsp;
+          <input type="text" name="numberofmale" class="shortinput" id="numberofmale" value="<?php echo $contact->getNumberOfMale(); ?>" style="width: 40px; " />
+          &nbsp;&nbsp;<b><?php echo $this->translate("contact_numberoffemale_label"); ?></b> &nbsp;
+          <input type="text" name="numberoffemale" class="shortinput" id="numberoffemale" value="<?php echo $contact->getNumberOfFemale(); ?>" style="width: 40px; " /></td>
+      </tr>
+    </tbody>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_businessdescription_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="expanding" id="businessdescription" name="businessdescription"><?php echo $contact->getBusinessDescription(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_goodsorservicesoffered_label"); ?>:</td>
+      <td><textarea class="expanding" id="goodsorservicesoffered" name="goodsorservicesoffered"><?php echo $contact->getGoodsOrServicesOffered(); ?></textarea></td>
+    </tr>
+   <tbody class="company">
+    	<tr>
+      <td class="label"><?php echo $this->translate("contact_numberofoutlets_label"); ?>: </td>
+      <td>          
+          <input type="text" name="numberofoutlets" id="numberofoutlets" class="shortinput" value="<?php echo $contact->getNumberOfOutlets(); ?>" />
+        </td>
+    </tr>
+    
+    </tbody>
+    
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr><td class="label"></td>
+        <td><a href="<?php echo $this->baseUrl("contact/list"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Contact" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($contact->getID()); ?>" />
+          <?php if (isApplicationLGMIS()) { ?>
+         	 <input type="hidden" id="locationid" name="locationid" value="<?php echo $contact->getLocationID(); ?>" />
+           <?php } ?>
+           </td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

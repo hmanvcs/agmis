@@ -1,0 +1,14 @@
+Dear <?php echo $this->firstname; ?>,
+
+Welcome to <?php echo $this->appname; ?>. To activate your <?php echo $this->appname; ?> account click on the activation link below:
+
+<?php echo $this->serverUrl($this->url($this->activationurl))."\n"; ?>
+
+If the page fails to open, copy the activation link and paste it in the address window of your browser. 
+
+After activating your account, you can log into <?php echo $this->appname; ?> using your email address and password.
+
+<?php echo $this->signoffname."\n"
+	.$this->signoffemail."\n"
+	.$this->serverUrl($this->baseUrl()); 
+?>

@@ -1,0 +1,123 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$commodity = new Commodity();
+	$commodity->populate(decode($request->id));
+	
+	$title = $commodity->getName(); 
+	$this->headTitle($title);  
+?>
+<style>
+#rightcolumn, #mainmenu, #header, #footer {
+	display:none;
+}
+body {
+	background: none; /** remove the background image at the top */ 
+}
+</style>
+<h1><?php echo $title; ?></h1><br>
+<table class="formtable">
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_description_label"); ?>:</td>
+    <td><?php echo isEmptyString($commodity->getDescription()) ? '--' : $commodity->getDescription(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_category_label"); ?>:</td>
+    <td><?php echo $commodity->getCategory()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("commodity_units_label"); ?>:</td>
+    <td><?php echo isEmptyString($commodity->getUnitID()) ? '--' : $commodity->getUnits()->getName(); ?></td>
+  </tr>
+</table>
+<?php
+	// Graph showing the market price trends for the selected commodity
+	$all_results_query = "SELECT d.id, d.datecollected,
+			CONCAT(MONTH(d.datecollected), YEAR(d.datecollected)) as monthyear,
+			CONCAT(DATE_FORMAT(d.datecollected, '%b'), ' ', YEAR(d.datecollected)) as `Month`,
+			ROUND(AVG(d.retailprice), -2) as `Retail Price`,
+			ROUND(AVG(d.wholesaleprice), -2)  as `Wholesale Price`
+			FROM
+			commoditypricedetails AS d
+			Inner Join pricesource as p on (d.sourceid = p.id)
+			Inner Join location as l 
+			WHERE (p.locationid = l.id) AND d.commodityid = ".$commodity->getID()." 
+			AND (TO_DAYS(d.datecollected) >= TO_DAYS(DATE_SUB(NOW(), INTERVAL 1 YEAR)))
+			GROUP BY YEAR(d.datecollected), MONTH(d.datecollected) "; 
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($all_results_query);
+
+	$has_no_data = (count($result) == 0) ? true : false;
+	
+	if(!$has_no_data){
+		$processeddata = array();
+		foreach($result as $key => $line){			
+			$processeddata['months'][] = $line['Month'];
+			$processeddata['retailprices'][] = $line['Retail Price'];
+			$processeddata['wholesaleprices'][] = $line['Wholesale Price'];
+		}
+		
+		// debugMessage($result);
+		// create list for periods
+		$periodlist = implode("', '",$processeddata['months']);
+		$periodlist = "'".$periodlist;
+		$periodlist = $periodlist."'";
+		// create list for retail price
+		$retaillist = implode(',',$processeddata['retailprices']);
+		// create list for wholesale price
+		$wholesalelist = implode(',',$processeddata['wholesaleprices']);	
+	}
+?>
+<script type="text/javascript">
+var chart;
+$(document).ready(function() {
+   	chart = new Highcharts.Chart({
+	  chart: {
+		 renderTo: 'container',
+		 defaultSeriesType: 'line' ,
+		 marginBottom: 50       
+	  },
+	  credits: {
+			enabled: false
+		},
+	  title: {
+		 text: "Price Trends for <?php echo $commodity->getName(); ?>" ,
+		 margin: 25 
+	  },   
+	  xAxis: {     
+		 categories: [<?php echo $periodlist; ?>]
+	  },
+	  yAxis: {         
+		 title: {
+			text: 'Price (UGX)'
+		 }
+	  },
+	  tooltip: {
+		 formatter: function() {
+			return this.series.name + ' in '+ this.x + ': UGX ' + Highcharts.numberFormat(this.y, 0);
+		 }		
+	  },      
+	  legend: {
+		 layout: 'vertical',         
+		 align: 'left',
+		 verticalAlign: 'top',
+		 x: 10,
+		 y: -10,
+		 floating: true,
+		 shadow: true
+	  },   
+	  series: [{
+			 name: 'Retail Price',
+			 data: [<?php echo $retaillist; ?>]
+		}, {
+			 name: 'Wholesale Price',
+			 data: [<?php echo $wholesalelist; ?>]
+		}]
+   });
+});
+</script>
+<div id="container"></div>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

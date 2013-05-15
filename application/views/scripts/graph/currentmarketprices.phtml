@@ -1,0 +1,78 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+		$filter = ""; 
+		if (!isEmptyString($request->summary)) {
+			$filter = " AND d.`commodityid` IN (7, 29, 14, 32, 4, 22, 34,55, 156) "; 
+			$filter2 = " AND cp.`commodityid` IN (7, 29, 14, 32, 4, 22, 34,55, 156) ";
+		}
+		$all_results_query = "SELECT 
+			  d.datecollected AS datecollected,
+			  cd.`name`,
+			  FORMAT(ROUND(AVG(d.retailprice), -1), 0) AS `Retail Price`,
+			  FORMAT(ROUND(AVG(d.wholesaleprice), -1), 0) AS `Wholesale Price`
+			FROM
+			  commoditypricedetails AS d 
+			  INNER JOIN commodity cd ON d.`commodityid` = cd.`id`
+			  INNER JOIN 
+			    (SELECT 
+			      MAX(cp.datecollected) AS datecollected
+			    FROM
+			      commoditypricedetails cp 
+			      INNER JOIN commoditypricesubmission AS cs1 
+			        ON (
+			          cp.`submissionid` = cs1.`id` 
+			          AND cs1.`status` = 'Approved'
+			        ) 
+			      INNER JOIN pricesource AS p 
+			        ON (
+			          cp.sourceid = p.id 
+			          AND p.`applicationtype` = 0
+			        ) 
+			    WHERE cp.`pricecategoryid` = 2 ".$filter2."  
+			   	) AS d2 
+			    ON (
+			      d.`datecollected` = d2.datecollected
+			    ) 
+			WHERE d.`pricecategoryid` = 2 ".$filter."
+			GROUP BY d.`commodityid`
+			ORDER BY cd.name ";
+
+		// debugMessage($all_results_query);
+		$conn = Doctrine_Manager::connection(); 
+		$result = $conn->fetchAll($all_results_query);
+?>
+	<b>As at <?php echo changeMySQLDateToPageFormat($result[0]['datecollected']); ?></b>
+	<table class="list">
+      <thead>
+        <tr>
+          <td>Commodity</td>
+          <td>Wholesale Price</td>
+          <td>Retail Price</td>
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+            	foreach($result as $line){						
+            ?>
+        <tr>
+          <td><?php echo $line['name']; ?></td>
+          <td align="right"><?php echo $line['Wholesale Price']; ?></td>
+         
+          <td align="right"><?php echo $line['Retail Price']; ?></td>
+        </tr>
+        <?php 						
+            	} // end processing results 
+            ?>
+      </tbody>
+    </table>
+    <?php 
+    	if (isEmptyString($request->summary)) {
+    ?>
+    <br><a target="_blank" href="<?php echo $this->serverUrl($this->baseUrl('signup')); ?>"><img class="subscribe" src="<?php echo $this->serverUrl($this->baseUrl('images/subscribe-button.gif')); ?>"></a> to access additional historical reports and data, or contact us at <a class="contact email" href="#">infotrade (at) fituganda dot com</a>
+    <?php
+    	}
+    ?>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

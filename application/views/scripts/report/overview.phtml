@@ -1,0 +1,112 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+
+	$title = $this->translate("report_pagetitle_dashboard"); 
+	$this->headTitle($title);
+?>
+<script>
+$(document).ready(function() {
+	// alert($('ul.lamisitems > li').size());	
+	if($('ul#reportlist > li').size() == 0){
+		$("table.report").remove();
+	}
+	if($('ul#reportuploadlist > li').size() == 0){
+		$("table.reportuploads").remove();
+	}
+});	
+</script>
+<style>
+ul.sectionitems li {	
+	background: url("../images/listitem_report_off.png") no-repeat;
+	width:115px;
+	padding-top:0;		
+}
+ul.sectionitems li:hover {
+	background: url("../images/listitem_report_on.png") no-repeat;
+}
+</style>
+<h2><?php echo $title; ?></h2>
+<table class="formtable report">
+  <tr class="sectionheading">
+    <td colspan="2">Price Reports</td>
+  </tr>
+  <tr>
+  	<td colspan="2">
+    	<ul class="sectionitems" id="reportlist">
+        	<?php if ($acl->checkPermission('Market Prices Detail Report', ACTION_VIEW)) {?>
+        		<li><a href="<?php echo $this->baseUrl("report/marketpricesdetail")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Market Prices <br />Detail Report</a></li>
+        	<?php } ?>  
+    		<?php if ($acl->checkPermission('Market Prices Report', ACTION_VIEW)) {?>
+        		<li><a href="<?php echo $this->baseUrl("report/marketprices")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Approved <br />Market Prices</a></li>
+        	<?php } ?>    
+        	<?php if ($acl->checkPermission('Market Price Comparison Report', ACTION_VIEW)) {?>        
+        		<li><a href="<?php echo $this->baseUrl("report/pricecomparison")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Price <br />Comparison</a></li>
+        	<?php } ?>
+        	<?php if ($acl->checkPermission('Average Market Prices Summary Report', ACTION_VIEW)) {?>
+            	<li><a href="<?php echo $this->baseUrl("report/averagepricesummary")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Average Price<br />Summary</a></li>
+            <?php } ?>
+            <?php if ($acl->checkPermission('Aggregated Market Prices Detail Report', ACTION_VIEW)) {?>
+            	<li><a href="<?php echo $this->baseUrl("report/aggregatedpricedetail")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Aggregated <br />Prices Detail</a></li>
+            <?php } ?>
+        </ul>
+    </td>
+  </tr>
+  <tr>
+  	<td colspan="2">
+    	<ul class="sectionitems">
+        	<?php if ($acl->checkPermission('Current Market Prices Report', ACTION_VIEW)) {?>
+        		<li><a href="<?php echo $this->baseUrl("report/currentmarketprices")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Current Market <br />Prices Report</a></li>
+        	<?php } ?>
+            <?php if ($acl->checkPermission('Current Fuel Prices Report', ACTION_VIEW)) {?>
+        		<li><a href="<?php echo $this->baseUrl("report/currentfuelprices")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Current Fuel <br />Prices Report</a></li>
+        	<?php } ?>
+            <?php if ($acl->checkPermission('Historical Market Prices Report', ACTION_VIEW)) {?>
+        		<li><a href="<?php echo $this->baseUrl("report/historicalmarketprices")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Historical Market<br />Prices Report</a></li>
+        	<?php } ?>
+            <?php if ($acl->checkPermission('Historical Fuel Prices Report', ACTION_VIEW)) {?>
+        		<li><a href="<?php echo $this->baseUrl("report/historicalfuelprices")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Historical Fuel<br />Prices Report</a></li>
+        	<?php } ?>      		
+        </ul>
+    </td>
+  </tr>
+</table>
+<table class="formtable reportuploads">
+  <tr class="sectionheading">
+    <td colspan="2">LGMIS Reports</td>
+  </tr>
+  <tr>
+  	<td colspan="2">
+    	<ul class="sectionitems">
+        	<?php if ($acl->checkPermission('Current Market Prices Report', ACTION_VIEW)) {?>
+        		<li><a href="<?php echo $this->baseUrl("report/averageboats")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Average Fishing <br />Boats Report</a></li>
+        	<?php } ?>   
+            <?php if ($acl->checkPermission('Current Market Prices Report', ACTION_VIEW)) {?>
+        		<li><a href="<?php echo $this->baseUrl("report/averagecatch")?>"><img src="<?php echo $this->baseUrl('images/chart_pie.png'); ?>" /><br />Average Catch <br />Fish Specie Report</a></li>
+        	<?php } ?>            
+        </ul>
+    </td>
+  </tr>
+</table>
+<table class="formtable reportuploads">
+  <tr class="sectionheading">
+    <td colspan="2">Uploaded Reports</td>
+  </tr>
+  <tr>
+    <td colspan="2"><ul class="sectionitems" id="reportuploadlist">
+        <?php if ($acl->checkPermission('Market Analysis Report', ACTION_LIST)) { ?>
+        	<li>
+            	<a class="list" href="<?php echo $this->baseUrl("marketanalysisreport/list")?>" title="View Market Analysis Reports"><img src="<?php echo $this->baseUrl('images/adobereader.png'); ?>" alt="View Market Analysis Reports" /><br />Market Analysis Reports</a>
+                <?php if ($acl->checkPermission('Market Analysis Report', ACTION_CREATE)) { ?>
+            		<a href="<?php echo $this->baseUrl("marketanalysisreport"); ?>" title="Add Market Analysis Report"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" /></a>
+                <?php } ?>
+            </li>
+        <?php } ?>
+      </ul>
+      </td>
+  </tr>
+</table>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

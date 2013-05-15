@@ -1,0 +1,97 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$offer = new Offer();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("offer_pagetitle_view"); 
+	
+	$offer->populate(decode($request->id));
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Offer? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 		
+	}); 
+</script>
+<div class="pageinfo"><?php echo $this->translate("offer_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $title; ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_offertype_label"); ?></td>
+    <td><?php echo $offer->getOfferTypeDescription(); ?></td>
+  </tr>  
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_contact_label"); ?>:</td>
+    <td class="nowrapping"><?php echo $offer->getContact(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_telephone_label"); ?>:</td>
+    <td><?php echo $offer->getTelephone(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_commodity_label"); ?>:</td>
+    <td><?php echo $offer->getCommodity()->getName();?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_quantity_label"); ?>:</td>
+    <td><?php echo $offer->getQuantity()." ".$offer->getCommodity()->getUnitsDescription(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_price_label"); ?>(<?php echo $config->currency->defaultsymbol."/".$offer->getCommodity()->getUnitsDescription(); ?>):</td>
+    <td><?php echo formatNumber($offer->getPrice()); ?></td>
+  </tr>
+  
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_location_label"); ?>:</td>
+    <td><?php echo $offer->getLocation()->getName();?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_datecreated_label"); ?>:</td>
+    <td><?php echo changemySQlDatetoPageFormat($offer->getDateCreated()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_expirydate_label"); ?>:</td>
+    <td><?php echo changemySQlDatetoPageFormat($offer->getExpiryDate()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("offer_notes_label"); ?>:</td>
+    <td class="nowrapping"><?php echo nl2br($offer->getNotes()); ?></td>
+  </tr>  
+</table>
+<table class="formtable formactions">
+  <tfoot>
+    <tr>
+      <td><?php if ($acl->checkPermission('Offer', ACTION_DELETE)) { ?>
+      		<?php if(($offer->getCreatedBy() == $userid) && (strtotime(changeDateFromPageToMySQLFormat($offer->getExpiryDate())) > strtotime(date("Y-m-d")) ) || ($acl->checkPermission('Expired Offer', ACTION_DELETE))){ ?>
+        		<a href="<?php echo $this->baseUrl('offer/delete/entityname/Offer/id/'.encode($offer->getID()).'/'.SUCCESS_MESSAGE.'/Offer has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("offer/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("offer_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("offer_button_delete"); ?></a>
+            <?php } ?>  
+        <?php } ?>
+        <?php if ($acl->checkPermission('Offer', ACTION_EDIT)) { ?>
+        	<?php if(($offer->getCreatedBy() == $userid) && (strtotime(changeDateFromPageToMySQLFormat($offer->getExpiryDate())) > strtotime(date("Y-m-d")) ) || ($acl->checkPermission('Expired Offer', ACTION_EDIT))){ ?>
+        		<a href="<?php echo $this->baseUrl('offer/index/id/'.encode($offer->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("offer_pagetitle_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("offer_pagetitle_edit"); ?></a>
+            <?php } ?>    
+        <?php } ?>
+        <?php if ($acl->checkPermission('Offer', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('offer/list/isactive/Y'); ?>" class="positiveaction" title="<?php echo $this->translate("offer_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("offer_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

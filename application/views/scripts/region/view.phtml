@@ -1,0 +1,60 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$region = new Region();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("region_pagetitle_view"); 
+	$region->populate(decode($request->id));
+		
+	$this->headTitle($title);  
+	
+?>
+<script>
+	$(document).ready(function() {		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Region? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 		
+	}); 
+</script>
+<div class="pageinfo"><?php echo $this->translate("region_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $title; ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("region_name_label"); ?>:</td>
+    <td><?php echo $region->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("region_description_label"); ?>:</td>
+    <td><?php echo $region->getDescription(); ?></td>
+  </tr>
+</table>
+<table class="formtable formactions">
+  <tfoot>
+    <tr>
+      <td><?php if ($acl->checkPermission('Region', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('region/delete/entityname/Region/id/'.encode($region->getID()).'/'.SUCCESS_MESSAGE.'/Region has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("region/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("region_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("region_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Region', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('region/index/id/'.encode($region->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("region_pagetitle_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("region_pagetitle_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Region', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('region/list'); ?>" class="positiveaction" title="<?php echo $this->translate("region_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("region_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

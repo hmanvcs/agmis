@@ -1,0 +1,96 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Create an instance of the class to handle the pagination
+	
+	$all_results_query = "SELECT d.id, d.datecollected, c.`name` AS Commodity, CONCAT(MONTH(d.datecollected),YEAR(d.datecollected)) AS monthyear,
+		DATE_FORMAT(d.datecollected, '%b %Y') AS `Month`, ROUND(AVG(d.retailprice), - 2) AS `Retail Price`, ROUND(AVG(d.wholesaleprice), - 2) AS `Wholesale Price` 
+		FROM commoditypricedetails AS d INNER JOIN commodity AS c ON (d.`commodityid` = c.`id`) 
+		INNER JOIN pricesource AS p ON (d.sourceid = p.id) INNER JOIN location AS l 
+		WHERE p.locationid = l.id AND TO_DAYS(d.datecollected) >= TO_DAYS(DATE_SUB(NOW(), INTERVAL 3 MONTH)) AND d.`commodityid` IN (95, 96, 97) 
+		GROUP BY YEAR(d.datecollected), MONTH(d.datecollected), d.`commodityid` 
+		ORDER BY c.name, d.datecollected ASC ";
+		
+	// debugMessage($all_results_query);
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($all_results_query);
+
+	$has_no_data = (count($result) == 0) ? true : false;
+	
+	if(!$has_no_data){
+		$processeddata = array();
+		$months = array(); 
+		foreach($result as $key => $line){			
+			$months[] = $line['Month'];
+			$processeddata[$line['Commodity']]['retailprices'][] = $line['Retail Price'];
+			//$processeddata[$line['Commodity']]['wholesaleprices'][] = $line['Wholesale Price'];
+		}
+		
+		// create list for periods
+		$periodlist = "'".implode("', '",$months)."'";
+		
+		// generate the series data
+		$series_data = array(); 
+		foreach ($processeddata as $key => $value) {
+			$series_data[] = "{name: '".$key."', data: [".implode(",", $value['retailprices'])."]}"; 
+			//$series_data[] = "{name: 'Wholesale Price: ".$key."', data: [".implode(", ", $value['wholesaleprices'])."]}";
+		}
+	}
+?>
+<script type="text/javascript">
+var chart;
+<?php 
+	$jquery_prefix = "$"; 
+	if (!isEmptyString($request->pgc)) {
+		$jquery_prefix = "jQuery"; 
+	} 
+?>
+<?php echo $jquery_prefix; ?>(document).ready(function() {
+	   chart = new Highcharts.Chart({
+		  chart: {
+			 renderTo: 'fuelcontainer',
+			 defaultSeriesType: 'column' ,
+			 marginTop: 60,
+			 height: 300       
+		  },
+		  credits: {
+				enabled: false
+			},
+		  title: {
+			 text: " "
+		  }, 
+		  exporting: {
+			  enabled: false
+		  }, 
+		  xAxis: {     
+			 categories: [<?php echo $periodlist; ?>]
+		  },
+		  yAxis: {   
+			 title: {
+				text: 'Price (UGX)'
+			 }
+		  },
+		  tooltip: {
+			  formatter: function() {
+				return this.series.name + ' in '+ this.x + ': UGX ' + Highcharts.numberFormat(this.y, 0);
+			 }
+		  },	
+		  legend: {
+			 layout: 'horizontal',         
+			 align: 'left',
+			 verticalAlign: 'top',
+			 x: -10,
+			 y: -10,
+			 floating: true,
+			 shadow: true,
+			 width: 200
+		  },   
+		  series: [<?php echo implode(",", $series_data); ?>]
+	   });
+});
+</script>
+<div id="fuelcontainer"></div>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

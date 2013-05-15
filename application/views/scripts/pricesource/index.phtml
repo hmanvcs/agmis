@@ -1,0 +1,175 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$pricesource = new PriceSource(); 
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("pricesource_pagetitle_new"); 
+	$posturl = $this->baseUrl("pricesource/create");
+	$button_title = $this->translate("pricesource_button_new"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$pricesource->populate(decode($request->id));
+		$title = sprintf($this->translate("pricesource_pagetitle_edit"), $pricesource->getName()); 
+		$button_title = $this->translate("pricesource_button_edit");
+		$posturl = $this->baseUrl("pricesource/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$pricesource->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		$("#pricesourceform").validate({
+			errorPlacement: function(error, element) {
+				if(element.attr("name") == "pricesource_pricecategoryid[]"){
+					error.appendTo("#categoryerror");
+				} else {
+					error.insertAfter(element);
+				}		
+			},	/**/			
+			// define the validation rules one field at a time
+			rules: {
+				name: "required",
+				phone: "required",
+				address: "required",
+				email: {
+					required:false,
+					email: true
+				},
+				"pricesource_pricecategoryid[]": {
+					"required": true,
+					"minlength": 1
+				},				
+				locationid: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {
+				name: "<?php echo $this->translate("pricesource_name_error"); ?>",			
+				phone: "<?php echo $this->translate("pricesource_phone_error"); ?>",
+				address: "<?php echo $this->translate("pricesource_address_error"); ?>",
+				email: {					
+					email: "<?php echo $this->translate("pricesource_invalid_email_error"); ?>"
+				},
+				"pricesource_pricecategoryid[]": "<?php echo $this->translate("pricesource_pricecategoryid_error");?>",				
+				locationid: "<?php echo $this->translate("pricesource_location_error"); ?>"
+			}
+		});
+
+	}); 
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("pricesource_page_info"); ?></div>
+<form id="pricesourceform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("pricesource_name_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="name" id="name" value="<?php echo $pricesource->getName(); ?>" /></td>
+	</tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("pricesource_pricecategoryid_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+			# lookup for price categories
+			$pricetypelookup = new LookupType();
+			$pricetypelookup->setName("ALL_PRICE_CATEGORIES");     			
+			
+			$prc = new Zend_Form_Element_MultiCheckbox('pricesource_pricecategoryid',
+					array(
+						'multiOptions' => $pricetypelookup->getOptionValuesFromQuery(), 
+						'view' => new Zend_View(),
+						'decorators' => array('ViewHelper')
+					)
+				);
+			$prc->setValue($pricesource->getPriceCategoryIDs()); 
+			$prc->setSeparator(' ');				
+			echo $prc->render();	
+      ?><div id="categoryerror"></div>
+      </td>
+    </tr>    
+    <tr>
+      <td class="label"><?php echo $this->translate("pricesource_phone_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="phone" id="phone" class="shortinput" value="<?php echo $pricesource->getPhone(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("pricesource_email_label"); ?>:</td>
+      <td><input type="text" name="email" id="email" value="<?php echo $pricesource->getEmail(); ?>" /></td>
+    </tr>
+  	<tr>
+        <td class="label"><?php echo $this->translate("pricesource_contactperson_label"); ?>:</td>
+        <td><input type="text" name="contactperson" id="contactperson" value="<?php echo $pricesource->getContactPerson(); ?>" /></td>
+    </tr>
+    <tr>
+    	<td class="label"><?php echo $this->translate("pricesource_location_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        <td><?php
+				$districtlookup= new LookupType(); 
+				$districtlookup->setName("ALL_DISTRICTS");
+				$districtdropdown = new Zend_Form_Element_Select('locationid',
+									array(
+										'multiOptions' => array_merge_maintain_keys(array('' => 'Select District'), $districtlookup->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('filterselect', 'chzn-select')											
+									)
+								);
+				$districtdropdown->setValue($pricesource->getLocationID()); 
+				echo $districtdropdown->render(); 
+		?></td>
+	</tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_applicationtype_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php 
+	  		$lookupapptype = new LookupType();
+			$lookupapptype->setName("APPLICATION_TYPE"); 	
+    		$apptypedropdown = new Zend_Form_Element_Select('applicationtype',
+    					array(
+							'multiOptions' => $lookupapptype->getOptionValuesAndDescription(), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper'),
+							'class' => array('filterselect', 'chzn-select')	
+						)
+    				);
+    		$apptypedropdown->setValue($pricesource->getApplicationType()); 
+    		echo $apptypedropdown->render();	
+		?></td>
+	</tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("pricesource_address_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="expanding" id="address" name="address"><?php echo $pricesource->getAddress(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("pricesource_notes_label"); ?>:</td>
+      <td><textarea class="expanding" id="notes" name="notes"><?php echo $pricesource->getNotes(); ?></textarea></td>
+    </tr>
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("dataentry"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="PriceSource" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($pricesource->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

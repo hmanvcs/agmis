@@ -1,0 +1,154 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = "Price Sources";
+	$plural = "Price Sources";
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("i.name","i.contactperson","i.phone","i.address","i.email","l.name"));
+	$paginate->setFilterColumns(array("pc.pricecategoryid","i.locationid","l.regionid"));
+	$paginate->setDefaultSortBy("i.datecreated");	
+	$paginate->setDefaultSortOrder("DESC");
+
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT i.id, pc.pricecategoryid, i.locationid, l.regionid, i.name as `Source Name`, i.contactperson as `Contact Person`, i.phone as `Phone`, i.email as `Email Address`, l.name as `District`, i.address as `Address` FROM pricesource as i left join location as l on(i.locationid=l.id) left join pricesourcecategory as pc on (i.id=pc.pricesourceid) WHERE i.id <> '' ".$paginate->getSearchAndFilterSQL()." GROUP BY i.id ".$paginate->getSortSQL();
+	
+	debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 4;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "3";
+	
+?>
+<form action="<?php echo $this->baseUrl("pricesource/listsearch"); ?>" method="get" id="sourcesform">
+<table class="filtercontainer">
+    <tr>
+        <td>
+            <table class="filtersection">
+                <tr>                    
+                    <td><?php                
+							$districtlookup= new LookupType(); 
+							$districtlookup->setName("ALL_DISTRICTS");
+							$districtdropdown = new Zend_Form_Element_Select('i'.HTML_TABLE_COLUMN_SEPARATOR.'locationid',
+												array(
+													'multiOptions' => array_merge_maintain_keys(array('' => 'All Districts'), $districtlookup->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+													'decorators' => array('ViewHelper'),
+													'class' => array('filterselect', 'chzn-select'),
+													'title' => 'Filter Prices Sources By District'																						
+												)
+											);
+							$districtdropdown->setValue($request->getParam('i'.HTML_TABLE_COLUMN_SEPARATOR.'locationid')); 
+							echo $districtdropdown->render(); 
+						?>
+                        <?php	                    
+							# lookup for price categories
+							$pricetypelookup = new LookupType();
+							$pricetypelookup->setName("ALL_PRICE_CATEGORIES");     			
+							
+							$prc = new Zend_Form_Element_Select('pc'.HTML_TABLE_COLUMN_SEPARATOR.'pricecategoryid',
+									array(
+										'multiOptions' =>  array_merge_maintain_keys(array('' => 'All Categories'), $pricetypelookup->getOptionValuesFromQuery()), $pricetypelookup->getOptionValuesFromQuery(), 
+										'view' => new Zend_View(),
+										'decorators' => array('ViewHelper'),
+										'class' => array('filterselect', 'chzn-select'),
+										'title' => 'Filter Prices Sources By Price Category'
+									)
+								);
+							$prc->setValue($request->getParam('pc'.HTML_TABLE_COLUMN_SEPARATOR.'pricecategoryid')); 				
+							echo $prc->render();	
+				      	?>
+                        </td>
+                </tr>               
+            </table>
+        </td>
+        <td>
+            <table>
+                <tr>
+                    <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="Enter your search term here and click search" /></td>
+                </tr>
+                <tr>
+                    <td><button type="submit" class="positiveaction" id="searchbutton" title="Click here to Search or Filter"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Search</button></td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+	<label class="error"><?php echo "There are no ".$plural." to display"; ?></label>        
+<?php } else { ?>
+<div id="counter"><?php echo $paginate->getItemCounterText()." ".$plural; ?></div>
+<div id="listcounter"><?php echo $this->listcountdropdown; ?></div>  
+<div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>  
+  <?php if ($acl->checkPermission('Price Source', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>  
+<div id="listresults_div">
+	<h2><?php echo $title; ?></h2>	  
+      <table class="list">	  
+      	<thead>
+          <tr>
+	       	<?php if ($acl->checkPermission('Price Source', ACTION_EDIT)) { ?>
+            	<td width="5%">Edit</td>
+            <?php } ?>
+            <td width="35%"><?php echo $paginate->getSortLinkForColumn('i.name','Name'); ?></td>                     
+            <td width="20%"><?php echo $paginate->getSortLinkForColumn('l.name','District'); ?></td>
+            <td width="15%"><?php echo $paginate->getSortLinkForColumn('i.phone','Phone'); ?></td>
+                                    	
+            <td width="25%"><?php echo $paginate->getSortLinkForColumn('i.address','Address'); ?></td>
+          </tr>
+      	</thead>
+		<tbody>
+			<?php 				  		
+            	foreach($result as $line){							
+            ?>
+            <tr>
+            	<?php if ($acl->checkPermission('Price Source', ACTION_EDIT)) { ?>
+            	<td align="center"><a href="<?php echo $this->baseUrl("pricesource/index/id/".encode($line['id'])); ?>" title="Update Price Source"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" alt="Update Price Source" /></a></td>
+                <?php } ?>
+            	<td class="nowrapping"><a href="<?php echo $this->viewUrl(array("id" => encode($line['id']))); ?>"><?php echo $line['Source Name']; ?></a></td>              
+                <td class="nowrapping"><?php echo $line['District']; ?></td>
+                <td class="nowrapping"><?php echo $line['Phone']; ?></td>
+                <td class="nowrapping"><?php echo $line['Address']; ?></td>
+            </tr>
+            <?php 						
+            	} // end processing results 
+            ?>
+		</tbody>
+	  </tr>
+	</table>
+</div>
+<?php			
+	} // end check that there are results    	
+?>
+<div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

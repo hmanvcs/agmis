@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ldml>
+	<identity>
+		<version number="$Revision: 1.2 $"/>
+		<generation date="$Date: 2011/10/06 12:01:49 $"/>
+		<language type="mn"/>
+		<territory type="MN"/>
+	</identity>
+	<alias source="mn_Cyrl_MN" path="//ldml"/>
+</ldml>

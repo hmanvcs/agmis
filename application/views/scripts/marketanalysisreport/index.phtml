@@ -1,0 +1,133 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$marketanalysisreport = new MarketAnalysisReport();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("marketanalysisreport_pagetitle_new"); 
+	$posturl = $this->baseUrl("marketanalysisreport/create");
+	$button_title = $this->translate("marketanalysisreport_button_new"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$marketanalysisreport->populate(decode($request->id));
+		$title = sprintf($this->translate("marketanalysisreport_pagetitle_edit"), changeMySQLDateToPageFormat($marketanalysisreport->getReportDate())); 
+		$button_title = $this->translate("marketanalysisreport_button_edit"); 
+		$posturl = $this->baseUrl("marketanalysisreport/edit");
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$marketanalysisreport->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		// configure the date picker not to accept dates before today  
+		$("#reportdate").datepicker(datepickerOpts); 
+		
+		$("#marketanalysisform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				volume: "required",
+				number: "required",
+				highlights: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {			
+				volume: "<?php echo $this->translate("marketanalysisreport_volume_error"); ?>",
+				number: "<?php echo $this->translate("marketanalysisreport_number_error"); ?>", 
+				highlights: "<?php echo $this->translate("marketanalysisreport_highlights_error"); ?>"
+			}
+		});
+	}); 
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("marketanalysisreport_page_info"); ?></div>
+<form id="marketanalysisform" action="<?php echo $posturl; ?>" method="post" enctype="multipart/form-data">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("marketanalysisreport_reportdate_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+       	$reportdatedropdown = new Zend_Form_Element_Select('reportdate',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getMarketAnalysisReportDates()),								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array('filterselect', 'chzn-select', "{required:true, messages: {required: '".$this->translate("marketanalysisreport_reportdate_error")."'}}"),
+							)
+						);
+		$reportdatedropdown->setValue(changeMySQLDateToPageFormat($marketanalysisreport->getReportDate())); 
+		echo $reportdatedropdown->render(); 
+      ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("marketanalysisreport_volume_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+       	$volumedropdown = new Zend_Form_Element_Select('volume',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getMarketPriceAnalysisVolumes()),								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper')
+							)
+						);
+		$volumedropdown->setValue($marketanalysisreport->getVolume()); 
+		echo $volumedropdown->render(); 
+      ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("marketanalysisreport_number_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php
+       	$numberdropdown = new Zend_Form_Element_Select('number',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getMarketPriceAnalysisNumbers()),								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper')
+							)
+						);
+		$numberdropdown->setValue($marketanalysisreport->getNumber()); 
+		echo $numberdropdown->render(); 
+      ?></td>
+    </tr>
+    <?php if (isEmptyString($marketanalysisreport->getID())) { 
+    		// show file uploads only when creating a new entity 
+    ?>
+     <tr>
+      <td class="label"><?php echo $this->translate("marketanalysisreport_report_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="file" name="report" id="report" /></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("marketanalysisreport_highlights_label"); ?>:</td>
+      <td><textarea class="expanding" id="highlights" name="highlights"><?php echo $marketanalysisreport->getHighlights(); ?></textarea></td>
+    </tr>    
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("marketanalysisreport/list"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="MarketAnalysisReport" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($marketanalysisreport->getID()); ?>" />
+           <input type="hidden" name="<?php echo URL_FAILURE; ?>" value="<?php echo encode($this->url()); ?>" />
+          </td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

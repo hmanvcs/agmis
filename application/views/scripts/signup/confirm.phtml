@@ -1,0 +1,25 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = $this->translate("useraccount_pagetitle_signup_confirm"); 
+	$this->headTitle($title);  
+?>
+<h2><?php echo $title; ?></h2>
+<table class="formtable">
+  <tr>
+    <td style="background-color:#FFFFFF;"> Thank you for registering with <b><?php echo $this->translate("appname"); ?></b>.<br>
+      <br />
+      An email has been sent to you. If you don't see the email in your inbox, please check your <b>Spam</b> or <b>Junk</b> mail folder.<br />
+      <br />
+      Note that it may take a while for you to receive the activation email depending on your email service provider. If you do not receive the email or have any other problems, let us know.<br><br />
+      
+      For any assistance please feel free to <a href="<?php echo $this->serverUrl($this->baseUrl('contactus')); ?>" title="Contact me">Contact us</a><br /><br />
+      You can now log in using the email address and password you provided during registration.<br />
+      <br />
+      <a class="positiveaction" title="Login Now" href="<?php echo $this->baseUrl("user/logout")?>"><img src="<?php echo $this->baseUrl('images/login.png'); ?>" />Login Now</a> <br />
+      <br></td>
+  </tr>
+</table>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

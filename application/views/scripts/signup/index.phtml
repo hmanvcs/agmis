@@ -1,0 +1,119 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = $this->translate("useraccount_pagetitle_signup"); 
+	$this->headTitle($title); 
+	
+	$useraccount = new UserAccount(); 
+	
+	// if user clicks back, populate user for edit
+	if(!isEmptyString($request->id)){
+		$useraccount->populate(decode($request->id));		
+	}
+	
+	// any errors occured in processing
+	if ($sessionhaserror) {
+		$useraccount->processPost($session->getVar(FORM_VALUES)); 
+	} 
+?>
+<script>
+	$(document).ready(function() {			
+
+		$("#signupform").validate({		
+			// define the validation rules one field at a time
+			rules: {								
+				firstname: "required",
+				lastname: "required",
+				email: {
+					"required": true, 
+					email: true
+				},
+				password: "required",
+				confirmpassword: {
+					required: true,
+					equalTo: "#password"
+				},							
+				agreedtoterms: "required" 
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				firstname: "<?php echo $this->translate("useraccount_firstname_error"); ?>",
+				lastname: "<?php echo $this->translate("useraccount_lastname_error"); ?>",
+				email: {
+					"required": "<?php echo $this->translate("useraccount_email_error"); ?>", 
+					"email": "<?php echo $this->translate("useraccount_email_invalid_error"); ?>"
+				},
+				password: "<?php echo $this->translate("useraccount_password_error"); ?>",
+				confirmpassword: {
+					required: "<?php echo $this->translate("useraccount_confirmpassword_error"); ?>",
+					equalTo: "<?php echo $this->translate("useraccount_confirmpassword_error_equalto"); ?>"
+				},				
+				phonenumber: {
+					"phoneUS": "<?php echo $this->translate("useraccount_phonenumber_us_error"); ?>"
+				},
+				agreedtoterms: "<?php echo $this->translate("useraccount_agreetoterms_error"); ?>" 
+			},
+			// update error location for the terms error
+			errorPlacement: function(error, element) {
+				if (element.attr("name") == "agreedtoterms"){ 
+					error.appendTo("#terms_error");
+				} else {
+					error.insertAfter(element);
+				} 
+			}
+		});
+	}); 
+</script>
+<form id="signupform" action="<?php echo $this->baseUrl("signup/signup"); ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+      <td><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>       
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_firstname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="firstname" name="firstname" type="text" value="<?php echo $useraccount->getFirstName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_lastname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="lastname" name="lastname" type="text" value="<?php echo $useraccount->getLastName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_email_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="email" name="email" type="text" value="<?php echo $useraccount->getEmail(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="password" name="password" type="password" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_password_confirm_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="confirmpassword" name="confirmpassword" type="password" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_acceptedterms_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="checkbox" name="agreedtoterms" id="agreedtoterms" value="1" class="<?php echo $useraccount->getAgreedToTerms(); ?>" />
+          <?php echo sprintf($this->translate("useraccount_terms_accept_label"), $this->baseUrl('termsandconditions')); ?>
+          <div id="terms_error"></div>
+          </td>
+    </tr>
+    <tr>
+	  <td>&nbsp;</td>
+      <td><a href="<?php echo $this->baseUrl("index"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;<button type="submit" class="positiveaction"><img src="<?php echo $this->baseUrl('images/signup.png'); ?>" /><?php echo $this->translate('useraccount_button_signup_label'); ?></button>
+        <input name="activationkey" type="hidden" value="<?php echo $useraccount->generateActivationKey(); ?>" />
+        <input name="id" type="hidden" value="<?php echo encode($useraccount->getID()); ?>" />
+    </tr>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

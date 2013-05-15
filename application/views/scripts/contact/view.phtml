@@ -1,0 +1,175 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$contact = new Contact();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("contact_pagetitle_view"); 
+	$contact->populate(decode($request->id));
+		
+	$this->headTitle($title);  
+	
+	# lookup for contact types
+	$contacttype = new LookupType();
+	$contacttype->setName("ALL_CONTACT_TYPES");
+	$all_contact_types = $contacttype->getOptionValuesAndDescription();
+	
+?>
+<script>
+	$(document).ready(function() {		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Contact from the Business Directory? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 		
+	}); 
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("contact_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $contact->getName(); ?></td>
+  </tr>
+  <tr>
+      <td></td>
+      <td class="label"><?php echo $this->translate("contact_personal_information_section"); ?></td>
+    </tr>
+  <?php if($contact->getContactType() == "1"){ ?>
+     <tr>
+      <td class="label"><?php echo $this->translate("contact_salutation_label"); ?>:</td>
+      <td><?php echo $contact->getSalutation(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_gender_label"); ?>:</td>
+      <td><?php echo ($contact->getGender() == "M") ? "Male" : "Female"; ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_firstname_label"); ?>:</td>
+      <td><?php echo $contact->getFirstName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_lastname_label"); ?>:</td>
+      <td><?php echo $contact->getLastName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_othernames_label"); ?>:</td>
+      <td><?php echo $contact->getOtherNames() == "" ? "---" : $contact->getOtherNames(); ?></td>
+    </tr>
+
+  <?php } else { ?> 
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_companyname_label"); ?>:</td>
+      <td><?php echo $contact->getOrgName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_contactperson_label"); ?>:</td>
+      <td><?php echo $contact->getContactPerson() == "" ? "---" : $contact->getContactPerson(); ?></td>
+    </tr>
+
+  <?php } ?>
+  
+  <tr>
+    <td class="label"><?php echo $this->translate("contact_phone_label"); ?>:</td>
+    <td><?php echo $contact->getPhone(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("contact_altphone_label"); ?>:</td>
+    <td><?php echo $contact->getPhone2() == "" ? "---" : $contact->getPhone2(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("contact_email_label"); ?>:</td>
+    <td><?php echo $contact->getEmail() == "" ? "---" : $contact->getEmail(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("contact_address_label"); ?>:</td>
+    <td><?php echo nl2br($contact->getAddress()); ?></td>
+  </tr>
+  
+    <?php if($contact->getContactType() == "1"){ ?>
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_idorpassportno_label"); ?>:</td>
+        <td><?php echo $contact->getIDOrPassportNo() == "" ? "---" : $contact->getIDOrPassportNo(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("contact_driverlicenceno_label"); ?>:</td>
+        <td><?php echo $contact->getDriverLicenceNo() == "" ? "---" : $contact->getDriverLicenceNo(); ?></td>
+      </tr>
+ 
+	<?php }?>
+ 
+ 	 <tr>
+      <td></td>
+      <td class="label"><?php echo $this->translate("contact_business_information_section"); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("contact_district_label"); ?>:</td>
+        <td><?php echo $contact->getLocation()->getName(); ?></td>
+      </tr>
+    <tr> 
+   
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_dateofregistration_label"); ?>:</td>
+      <td><?php echo $contact->getDateOfRegistration() == "" ? "---" : changemySQlDatetoPageFormat($contact->getDateOfRegistration()); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_tradinglicence_label"); ?>:</td>
+      <td><?php echo $contact->getLicenceNo() == "" ? "---" : $contact->getLicenceNo(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("contact_vatnumber_label"); ?>:</td>
+      <td><?php echo $contact->getVATNumber() == "" ? "---" : $contact->getVATNumber(); ?></td>
+    </tr>
+     <tr>
+      <td class="label"><?php echo $this->translate("contact_tinnumber_label"); ?>:</td>
+      <td><?php echo $contact->getTINNumber() == "" ? "---" : $contact->getTINNumber(); ?></td>
+    </tr>
+    <td class="label"><?php echo $this->translate("contact_businessdirectorycategory_label"); ?>:</td>
+    <td><?php echo $contact->displayCategories(); ?></td>
+  </tr>
+  <?php if($contact->getContactType() == "2"){ ?>
+  <tr>
+      <td class="label"><?php echo $this->translate("contact_numberofpeopleemployed_label"); ?>:</td>
+      <td><b><?php echo $this->translate("contact_numberofmale_label"); ?>:</b> &nbsp;<?php echo $contact->getNumberOfMale() == "" ? "---" : $contact->getNumberOfMale(); ?>&nbsp;&nbsp;<b><?php echo $this->translate("contact_numberoffemale_label"); ?>:</b> &nbsp;<?php echo $contact->getNumberOfFemale() == "" ? "---" : $contact->getNumberOfFemale(); ?></td>
+    </tr>
+   <?php } ?>
+   <tr>
+      <td class="label"><?php echo $this->translate("contact_businessdescription_label"); ?>:</td>
+      <td><?php echo $contact->getBusinessDescription() == "" ? "---" : nl2br($contact->getBusinessDescription()); ?></td>
+   </tr>
+   <tr>
+      <td class="label"><?php echo $this->translate("contact_goodsorservicesoffered_label"); ?>:</td>
+      <td><?php echo $contact->getGoodsOrServicesOffered() == "" ? "---" : nl2br($contact->getGoodsOrServicesOffered()); ?></td>
+   </tr>
+   <?php if($contact->getContactType() == "2"){ ?>
+   <tr>
+      <td class="label"><?php echo $this->translate("contact_numberofoutlets_label"); ?>:</td>
+      <td><?php echo $contact->getNumberOfOutlets() == "" ? "---" : $contact->getNumberOfOutlets(); ?></td>
+   </tr>
+   <?php }?>
+   
+</table>
+<table class="formtable formactions">
+  <tfoot>
+    <tr>
+      <td><?php if ($acl->checkPermission('Contact', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('contact/delete/entityname/Contact/id/'.encode($contact->getID()).'/'.SUCCESS_MESSAGE.'/Contact has been successfully deleted from the Business Directory/'.URL_SUCCESS.'/'.encode($this->baseUrl("contact/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("contact_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("contact_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Contact', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('contact/index/id/'.encode($contact->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("contact_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("contact_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Contact', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('contact/list'); ?>" class="positiveaction" title="<?php echo $this->translate("contact_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("contact_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

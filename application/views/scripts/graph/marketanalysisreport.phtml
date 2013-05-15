@@ -1,0 +1,43 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$marketanalysisreport = new MarketAnalysisReport();
+	
+	// load the latest Market report
+	$sql = "SELECT id FROM marketanalysisreport WHERE reportdate = (SELECT MAX(reportdate) from marketanalysisreport m2)";
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchOne($sql);
+	
+	$showprevious = $request->showprevious; 
+	if (isEmptyString($showprevious)) {
+		$marketanalysisreport->populate($result); 
+	
+		$reportname = "Agricultural Market Report Vol.".$marketanalysisreport->getVolume()." , No.".$marketanalysisreport->getNumber()." ".changeMySQLDateToPageFormat($marketanalysisreport->getReportDate());
+?>
+		<h4><?php echo $marketanalysisreport->getLink($reportname); ?></h4>
+		<?php echo snippet(nl2br($marketanalysisreport->getHighlights()), 200); ?>
+	<?php } else { ?>
+		<br><br>
+		<h2>Previous Reports</h2>
+		<?php
+			$query = Doctrine_Query::create()->from("MarketAnalysisReport")->where('id <> ?', $result)->orderBy('reportdate DESC')->limit("12");
+			$reports = $query->execute(); 
+			$count = $reports->count(); 
+			for($i = 0; $i < $count; $i++)  {
+				$report = $reports->get($i); 
+				echo '<h4>'; 
+				echo 'Agricultural Market Report Vol.'.$report->getVolume()." , No.".$report->getNumber()." ".changeMySQLDateToPageFormat($report->getReportDate());
+				echo "</h4>"; 
+				
+				?>
+				<div><?php echo $report->getLink("Download"); ?><br>
+					<h5>Summary:</h5>
+					<?php echo nl2br($report->getHighlights()); ?>
+				</div>
+				<?php 
+			}
+			?>
+			<br><a class="subscribe" target="_blank" href="<?php echo $this->serverUrl($this->baseUrl('signup')); ?>"><img src="<?php echo $this->serverUrl($this->baseUrl('images/subscribe-button.gif')); ?>"></a> to access additional historical reports and data, or contact us at <a class="contact email" href="#">infotrade (at) fituganda dot com</a>
+			<?php
+} // end check for whether previous reports are to be shown
+?>

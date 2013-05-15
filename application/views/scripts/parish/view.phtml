@@ -1,0 +1,75 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$parish = new Parish();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("parish_pagetitle_view"); 
+	$parish->populate(decode($request->id));
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Parish? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 		
+	}); 
+</script>
+<div class="pageinfo"><?php echo $this->translate("parish_page_info"); ?></div>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+<?php } ?>
+<table class="formtable">
+  <tr class="sectionheading">
+    <td colspan="2"><?php echo $title; ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("parish_region_label"); ?>:</td>
+    <td><?php echo $parish->getRegion()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("parish_district_label"); ?>:</td>
+    <td><?php echo $parish->getDistrict()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("parish_county_label"); ?>:</td>
+    <td><?php echo $parish->getCounty()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("parish_subcounty_label"); ?>:</td>
+    <td><?php echo $parish->getSubcounty()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("parish_name_label"); ?>:</td>
+    <td><?php echo $parish->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("parish_description_label"); ?>:</td>
+    <td><?php echo $parish->getDescription(); ?></td>
+  </tr>
+</table>
+<table class="formtable formactions">
+  <tfoot>
+    <tr>
+      <td><?php if ($acl->checkPermission('Parish', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('parish/delete/entityname/Parish/id/'.encode($parish->getID()).'/'.SUCCESS_MESSAGE.'/Parish has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("parish/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("parish_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("parish_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Parish', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('parish/index/id/'.encode($parish->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("parish_pagetitle_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("parish_pagetitle_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Parish', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('parish/list'); ?>" class="positiveaction" title="<?php echo $this->translate("parish_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("parish_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

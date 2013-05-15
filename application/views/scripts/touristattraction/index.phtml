@@ -1,0 +1,165 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$touristattraction = new TouristAttraction(); 
+	
+	$locationclass = ""; 
+	if (isApplicationLGMIS()) {
+		$locationclass = "hidden"; 
+		$touristattraction->setDistrictID($session->getVar('districtid')); 
+	}
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("touristattraction_pagetitle_new"); 
+	$posturl = $this->baseUrl("touristattraction/create");
+	$button_title = $this->translate("touristattraction_button_new"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$touristattraction->populate(decode($request->id));
+		$title = $this->translate("touristattraction_pagetitle_edit"); 
+		$button_title = $this->translate("touristattraction_button_edit");
+		$posturl = $this->baseUrl("touristattraction/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$touristattraction->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		
+		$("#touristattractionform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				districtid: "required",
+				subcountyid:  "required",
+				name: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				districtid: "<?php echo $this->translate("touristattraction_districtid_error"); ?>",
+				subcountyid: "<?php echo $this->translate("touristattraction_subcounty_error"); ?>",
+				name: "<?php echo $this->translate("touristattraction_name_error"); ?>"
+			}
+		});
+		
+		// trigger a chained select to return only sub-counties for the selected district
+		$('#districtid').selectChain({
+			target: $('#subcountyid'),
+			url: '<?php echo $this->baseUrl('index/selectchain'); ?>',
+			data: 'select_chain_type=district_sub_counties&currentvalue=<?php echo $touristattraction->getDistrictID(); ?>',
+			type: 'get'
+		});
+		//trigger change if the groups dropdown is not empty so that company company be populated		
+		if($('#districtid').val() != ""){
+			$('select#districtid').change();
+		}
+		
+	});
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("touristattraction_page_info"); ?></div>
+<form id="touristattractionform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_name_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="name" id="name" value="<?php echo $touristattraction->getName(); ?>" /></td>
+    </tr>
+    <tr class="<?php echo $locationclass; ?>">
+      <td class="label"><?php echo $this->translate("touristattraction_district_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+       <td><?php
+      	$districtlist = new LookupType(); 
+      	$districtlist->setName("ALL_DISTRICTS");
+       	$districtdropdown = new Zend_Form_Element_Select('districtid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $districtlist->getOptionValuesFromQuery()),								
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array("filterselect", 'chzn-select'),
+							)
+						);
+		$districtdropdown->setValue($touristattraction->getDistrictID()); 
+		echo $districtdropdown->render(); 
+      ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("touristattraction_subcounty_label"); ?>:<?php echo $this->translate("required_field_marker"); ?> </td>
+        <td><select id="subcountyid" name="subcountyid">
+            <option value="" selected="selected">&lt;Select One&gt;</option>
+          </select></td>
+      </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_physical_location_label"); ?></td>
+      <td><input type="text" name="physicallocation" id="physicallocation" value="<?php echo $touristattraction->getPhysicalLocation(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_contact_location_label"); ?></td>
+      <td><input type="text" name="contact" id="contact" value="<?php echo $touristattraction->getContact(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_tourist_attractions_label"); ?>:</td>
+      <td><textarea class="expanding" id="touristattractions" name="touristattractions"><?php echo $touristattraction->getTouristAttractions(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_price_offers_label"); ?>:</td>
+      <td><textarea class="expanding" id="priceoffers" name="priceoffers"><?php echo $touristattraction->getPriceOffers(); ?></textarea></td>
+    </tr>	
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_accomodation_label"); ?>:</td>
+      <td><textarea class="expanding" id="accomodation" name="accomodation"><?php echo $touristattraction->getAccomodation(); ?></textarea></td>
+    </tr>
+     <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_entertainment_label"); ?>:</td>
+      <td><textarea class="expanding" id="entertainment" name="entertainment"><?php echo $touristattraction->getEntertainment(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_transport_label"); ?>:</td>
+      <td><textarea class="expanding" id="transport" name="transport"><?php echo $touristattraction->getTransport(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_otherservices_label"); ?>:</td>
+      <td><textarea class="expanding" id="otherservices" name="otherservices"><?php echo $touristattraction->getOtherServices(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_booking_label"); ?>:</td>
+      <td><textarea class="expanding" id="booking" name="booking"><?php echo $touristattraction->getBooking(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("touristattraction_tour_packages_label"); ?>:</td>
+      <td><textarea class="expanding" id="tourpackages" name="tourpackages"><?php echo $touristattraction->getTourPackages(); ?></textarea></td>
+    </tr>
+    
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("dataentry"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="TouristAttraction" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($touristattraction->getID()); ?>" />
+          </td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

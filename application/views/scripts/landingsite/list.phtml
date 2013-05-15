@@ -1,0 +1,158 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("landingsite_pagetitle_list");
+	$this->headTitle($title);
+	
+	$districtid = $session->getVar("districtid"); 
+	if (isApplicationLGMIS()) {
+	    // filter out the districts
+	    $request->setParam("l".HTML_TABLE_COLUMN_SEPARATOR."districtid", $districtid); 
+	    
+	}
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("l.name", "l.waterbody"));
+	$paginate->setFilterColumns(array("l.waterbodyid","l.districtid","l.parishid", "l.subcountyid"));
+	$paginate->setDefaultSortBy("l.name");	
+
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT l.id, l.`name` AS `Name`, l.description AS `Description`, w.`name` AS `Waterbody`, d.`name` AS `District`,s.`name` AS `Sub-county`,p.`name` AS `Parish` 
+            FROM landingsite AS l INNER JOIN waterbody w ON l.`waterbodyid` = w.`id` INNER JOIN location d ON l.`districtid` = d.`id` INNER JOIN location s ON l.subcountyid = s.id INNER JOIN location p 
+            WHERE l.`parishid` = p.`id` ".$paginate->getSearchAndFilterSQL()." GROUP BY l.id ".$paginate->getSortSQL();
+	
+	// debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+?>
+
+<form action="<?php echo $this->baseUrl("landingsite/listsearch"); ?>" method="get" id="usersform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+      	   <tr>
+		         <td><?php
+				       	$subcountydropdown = new Zend_Form_Element_Select('s'.HTML_TABLE_COLUMN_SEPARATOR.'subcountyid',
+											array(
+												'multiOptions' => array_merge_maintain_keys(array('' => 'Subcounty'), getSubcountiesInDistrict($districtid)),								
+											    'view' => new Zend_View(),
+												'decorators' => array('ViewHelper'),
+												'class' => array('filterselect', 'chzn-select')
+											)
+										);
+						$subcountydropdown->setValue($request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'subcountyid')); 
+						echo $subcountydropdown->render(); 
+					      ?>
+		              &nbsp;&nbsp;
+		         </td>
+		         <td><?php
+				       	$parishdropdown = new Zend_Form_Element_Select('p'.HTML_TABLE_COLUMN_SEPARATOR.'parishid',
+											array(
+												'multiOptions' => array_merge_maintain_keys(array('' => 'Parish'), getParishesInDistrict($districtid)),								'view' => new Zend_View(),
+												'decorators' => array('ViewHelper'),
+												'class' => array('filterselect', 'chzn-select')
+											)
+										);
+						$parishdropdown->setValue($request->getParam('l'.HTML_TABLE_COLUMN_SEPARATOR.'parishid')); 
+						echo $parishdropdown->render(); 
+					      ?>
+		              &nbsp;&nbsp;
+		         </td>
+	         </tr>
+      	   <tr>
+      	     <td>&nbsp;</td>
+      	     <td>&nbsp;</td>
+   	      </tr>
+          </table>
+      </td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="Enter your search term here and click search" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="Click here to Search or Filter"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Search</button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="error"><?php echo $this->translate("landingsite_list_norecords"); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("landingsite_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>  
+  <?php if ($acl->checkPermission('Boat', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <div id="listresults_div">
+    <h2><?php echo $title; ?></h2>
+    <table class="list">
+      <thead>
+        <tr>
+          <?php if ($acl->checkPermission('Landing Site', ACTION_EDIT)) {?>
+          <td style="width:5%;">Edit</td>
+          <?php } ?>
+          <td><?php echo $paginate->getSortLinkForColumn('l.`name`','Name'); ?></td>
+          <td><?php echo $paginate->getSortLinkForColumn('l.waterbodyid','Waterbody'); ?></td>
+          <td><?php echo $paginate->getSortLinkForColumn('l.districtid','District'); ?></td>
+          <td><?php echo $paginate->getSortLinkForColumn('l.subcountyid','Sub-county'); ?></td>
+          <td><?php echo $paginate->getSortLinkForColumn('l.parishid','Parish'); ?></td>
+        </tr>
+      </thead>
+      <tbody>
+        <?php 				  		
+            	foreach($result as $line){							
+            ?>
+       <tr>
+          <?php if ($acl->checkPermission('Landing Site', ACTION_EDIT)) {?>
+          <td class="nowrapping"><a href="<?php echo $this->baseUrl("landingsite/index/id/".encode($line['id'])); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>"/></a></td>
+          <?php } ?>
+          <td class="nowrapping"><a href="<?php echo $this->baseUrl("landingsite/view/id/".encode($line['id'])); ?>"><?php echo $line['Name']; ?></a></td>
+          <td><?php echo $line['Waterbody']; ?></td>
+          <td><?php echo $line['District']; ?></td>
+          <td><?php echo $line['Sub-county']; ?></td>
+          <td><?php echo $line['Parish']; ?></td>
+        </tr>
+        <?php 						
+            	} // end processing results 
+            ?>
+      </tbody>
+        </tr>
+      
+    </table>
+  </div>
+  <?php			
+	} // end check that there are results    	
+?><div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

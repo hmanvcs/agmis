@@ -1,0 +1,96 @@
+RewriteEngine On
+
+# the base for rewriting the files, this is relative to the document root being used 
+# for local environment use the name of the project folder 
+RewriteBase /agmis/public/
+
+# Compression: http://code.google.com/speed/page-speed/docs/payload.html#GzipCompression
+<IfModule mod_deflate.c>
+	AddOutputFilter DEFLATE application/atom+xml
+	AddOutputFilter DEFLATE application/json
+	AddOutputFilter DEFLATE application/xhtml+xml
+	AddOutputFilter DEFLATE application/xml
+	AddOutputFilter DEFLATE text/css
+	AddOutputFilter DEFLATE text/html
+	AddOutputFilter DEFLATE text/plain
+	AddOutputFilter DEFLATE text/x-component
+	AddOutputFilter DEFLATE text/xml
+
+	# The following MIME types are in the process of registration
+	AddOutputFilter DEFLATE application/xslt+xml
+	AddOutputFilter DEFLATE image/svg+xml
+
+	# The following MIME types are NOT registered
+	AddOutputFilter DEFLATE application/mathml+xml
+	AddOutputFilter DEFLATE application/rss+xml
+
+	# JavaScript has various MIME types
+	AddOutputFilter DEFLATE application/javascript
+	AddOutputFilter DEFLATE application/x-javascript
+	AddOutputFilter DEFLATE text/ecmascript
+	AddOutputFilter DEFLATE text/javascript
+</IfModule>
+ 
+# Browser Caching: http://code.google.com/speed/page-speed/docs/caching.html#LeverageBrowserCaching
+#
+# Google recommends specifying the following for all cacheable resources:
+#
+#    1. Expires or Cache-Control max-age
+#
+# 	Set Expires to a minimum of one month, and preferably up to one year, in the future. (We
+# 	prefer Expires over Cache-Control: max-age because it is is more widely supported.) Do not
+# 	set it to more than one year in the future, as that violates the RFC guidelines.
+#
+#    2. Last-Modified or ETag
+#
+# 	Set the Last-Modified date to the last time the resource was changed. If the Last-Modified
+#	date is sufficiently far enough in the past, chances are the browser won't refetch it. 
+#
+# Per Google: "it is redundant to specify both Expires and Cache-Control: max-age, or to specify
+# both Last-Modified and ETag."
+<IfModule mod_expires.c>
+  ExpiresActive On
+
+	ExpiresByType application/json			"access plus 1 year"
+	ExpiresByType application/pdf			"access plus 1 year"
+	ExpiresByType application/x-shockwave-flash	"access plus 1 year"
+	ExpiresByType image/bmp 			"access plus 1 year"
+	ExpiresByType image/gif 			"access plus 1 year"
+	ExpiresByType image/jpeg 			"access plus 1 year"
+	ExpiresByType image/png 			"access plus 1 year"
+	ExpiresByType image/svg+xml 			"access plus 1 year"
+	ExpiresByType image/tiff 			"access plus 1 year"
+	ExpiresByType image/vnd.microsoft.icon 		"access plus 1 year"
+	ExpiresByType text/css 				"access plus 1 year"
+	ExpiresByType video/x-flv 			"access plus 1 year"
+
+	# The following MIME types are in the process of registration
+	ExpiresByType application/xslt+xml		"access plus 1 year"
+	ExpiresByType image/svg+xml			"access plus 1 year"
+
+	# The following MIME types are NOT registered
+	ExpiresByType application/mathml+xml		"access plus 1 year"
+	ExpiresByType application/rss+xml		"access plus 1 year"
+
+	# JavaScript has various MIME types
+	ExpiresByType application/x-javascript 		"access plus 1 year"
+	ExpiresByType application/javascript 		"access plus 1 year"
+	ExpiresByType text/ecmascript 			"access plus 1 year"
+	ExpiresByType text/javascript 			"access plus 1 year"
+</IfModule>
+# END Expire headers
+ 
+<IfModule mod_headers.c>
+	# Try removing etag headers (if it's coming from proxy for example)
+  Header unset ETag
+</IfModule>
+
+# Remove ETags
+FileETag None
+
+# Rewrite conditions for the Front controller 
+RewriteCond %{REQUEST_FILENAME} -s [OR]
+RewriteCond %{REQUEST_FILENAME} -l [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^.*$ - [NC,L]
+RewriteRule ^.*$ index.php [NC,L]

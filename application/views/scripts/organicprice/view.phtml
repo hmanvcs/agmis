@@ -1,0 +1,222 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$pricesubmission = new CommodityPriceSubmission();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("commodityprice_organic_pagetitle_view"); 
+	$pricesubmission->populate(decode($request->id));
+		
+	$this->headTitle($title);	
+	
+?>
+<script>
+	$(document).ready(function() {
+		// When approving, prompt user to confirm action
+		$("table.formtable .approve").click(function(){
+			if(window.confirm("Are you sure you want to Approve these Prices? \n Click OK to confirm or Cancel to stay on this page.")){				
+				return true;
+			} else {
+				return false;
+			}
+		});
+		// Reject Action
+		$("table.formtable .reject").click(function(){
+			if(window.confirm("Are you sure you want to Reject these Prices? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		});
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete all prices for this Submission? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 
+		
+		// filter the categories and display only commodities of a certain category
+		$("#categoryid").change(function(){
+			// alert("value is "+this.value);
+			if(this.value == ""){
+				$("table.commodities tbody tr").show();
+			} else {
+				$("table.commodities tbody tr").not("."+this.value).hide();
+				$("table.commodities tbody tr."+this.value).show();
+			}
+		});
+		
+		// Copy buttons at the top to the bottom
+		$("td.bottombuttons").html($("td.topbuttons").html());
+	}); 
+</script>
+
+<form>
+  <div class="pageinfo"><?php echo $this->translate("commodityprice_organic_view_info"); ?></div>
+  <table class="formtable">
+    <tfoot>
+      <tr>
+        <td class="topbuttons">
+        <?php if ($acl->checkPermission('Organic Price', ACTION_DELETE)) { ?>
+          	<?php if(($pricesubmission->getCollectedbyID() == $userid && $pricesubmission->getStatus() != "Approved") || ($acl->checkPermission('Approved Price', ACTION_EDIT)) ){ ?>
+          	<a href="<?php echo $this->baseUrl('organicprice/delete/entityname/CommodityPriceSubmission/id/'.encode($pricesubmission->getID()).'/'.SUCCESS_MESSAGE.'/Prices has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("organicprice/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("commodityprice_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("commodityprice_button_delete"); ?></a>&nbsp;&nbsp;
+          	<?php } ?>
+        <?php } ?>
+		<?php if ($acl->checkPermission('Organic Price', ACTION_EDIT)) { ?>
+          <?php if(($pricesubmission->getCollectedbyID() == $userid && $pricesubmission->getStatus() != "Approved") || ($acl->checkPermission('Approved Price', ACTION_EDIT)) ){ ?>
+          <a href="<?php echo $this->baseUrl('organicprice/index/id/'.encode($pricesubmission->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("commodityprice_update_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("commodityprice_update_button_edit"); ?></a>&nbsp;&nbsp;
+          <?php } ?>
+        <?php } ?>
+          <?php if ($acl->checkPermission('Organic Price', ACTION_APPROVE)) { ?>
+          <?php if($pricesubmission->getStatus() != "Rejected"){ ?>
+          <a href="<?php echo $this->baseUrl('organicprice/reject/entityname/CommodityPriceSubmission/id/'.encode($pricesubmission->getID()).'/status/Rejected/dateapproved/'.date("d/m/Y").'/approvedbyid/'.$userid.'/'.SUCCESS_MESSAGE.'/Prices have been Rejected/'.URL_SUCCESS.'/'.encode($this->baseUrl("organicprice/list"))); ?>" class="negativeaction reject" title="<?php echo $this->translate("commodityprice_button_reject"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("commodityprice_button_reject"); ?></a>&nbsp;&nbsp;
+          <?php } ?>
+          <?php if($pricesubmission->getStatus() != "Approved"){ ?>
+          <a href="<?php echo $this->baseUrl('organicprice/approve/entityname/CommodityPriceSubmission/id/'.encode($pricesubmission->getID()).'/status/Approved/approvedbyid/'.$userid.'/'.SUCCESS_MESSAGE.'/Prices have been successfully Approved/'.URL_SUCCESS.'/'.encode($this->baseUrl("organicprice/list"))); ?>" class="positiveaction approve" title="<?php echo $this->translate("commodityprice_button_approve"); ?>"><img src="<?php echo $this->baseUrl('images/tick.png'); ?>" /><?php echo $this->translate("commodityprice_button_approve"); ?></a>&nbsp;&nbsp;
+          <?php } ?>
+          <?php } ?>
+          <?php if ($acl->checkPermission('Organic Price', ACTION_LIST)) { ?>
+          <a href="<?php echo $this->baseUrl('organicprice/list'); ?>" class="positiveaction" title="<?php echo $this->translate("commodityprice_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("commodityprice_button_list"); ?></a>&nbsp;&nbsp;
+          <?php } ?></td>
+      </tr>
+    </tfoot>
+  </table>
+  <br />
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <div class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></div>
+  <?php } ?>
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_datecollected_label"); ?>:</td>
+      <td><?php echo changeMySQLDateToPageFormat($pricesubmission->getDateCollected()); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_organic_location_label"); ?>:</td>
+      <td><?php echo $pricesubmission->getSource()->getName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_collectedby_label"); ?>:</td>
+      <td><?php echo $pricesubmission->getCollectedBy()->getName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_status_label"); ?>:</td>
+      <td><?php echo $pricesubmission->getStatus(); ?></td>
+    </tr>
+    <?php if($pricesubmission->getStatus() == "Approved"){ ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_dateapproved_label"); ?>:</td>
+      <td><?php echo changeMySQLDateToPageFormat($pricesubmission->getDateApproved()); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_approvedby_label"); ?>:</td>
+      <td><?php echo $pricesubmission->getApprovedBy()->getName(); ?></td>
+    </tr>
+    <?php } ?>
+    <?php if($pricesubmission->getStatus() == "Rejected"){ ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_daterejected_label"); ?>:</td>
+      <td><?php echo changeMySQLDateToPageFormat($pricesubmission->getDateApproved()); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commodityprice_rejectedby_label"); ?>:</td>
+      <td><?php echo $pricesubmission->getApprovedBy()->getName(); ?></td>
+    </tr>
+    <?php } ?>
+  </table>
+  <br />
+  <div class="commodityfilter_div">&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $this->translate("commodityprice_category_label"); ?>:
+    <?php
+		$commoditycategory_lookup = new LookupType(); 
+		$commoditycategory_lookup->setName("ALL_COMMODITY_CATEGORIES");
+		$cat = new Zend_Form_Element_Select('categoryid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => 'All Categories'), $commoditycategory_lookup->getOptionValuesFromQuery()),
+								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array('commodityfilter', 'chzn-select'),
+								'title' => 'Filter Commodities by Category'									
+							)
+						);
+		$cat->setValue(""); 
+		echo $cat->render(); 
+	?>
+  </div>
+  <br />
+  <table class="formtable commodities">
+    <thead>
+      <tr class="sectionheading">
+        <td align="left" style="width:270px;">Commodity<?php echo $this->translate("commodityprice_commodity_label"); ?></td>
+        <td align="center"><?php echo $this->translate("commodityprice_units_label"); ?></td>
+        <td align="center"><?php echo $this->translate("commodityprice_wholesale_label"); ?></td>
+        <td align="center"><?php echo $this->translate("commodityprice_retail_label"); ?></td>        
+        <td align="center">Notes</td>
+      </tr>
+    </thead>
+    <?php   
+  		# Fetch Existing Price Details for the current submission
+		$commodities = $pricesubmission->getCurrentPriceDetails(3);
+		// debugMessage($result);
+		$i = 0;
+		foreach($commodities as $commodity){
+  ?>
+    <tr class="<?php echo $commodity['categoryid']; ?>">
+      <td align="left" class="label"><?php echo $commodity['name']; ?></td>
+      <td align="center"><?php echo $commodity['units']; ?></td>
+      <td align="center" class="prices"><?php echo formatNumber($commodity['wholesaleprice']); ?></td>
+      <td align="center" class="prices"><?php echo formatNumber($commodity['retailprice']); ?></td>      
+      <td align="center"><script>
+			$(document).ready(function(){				
+				
+				$("#notes_<?php echo $i; ?>_trigger").click(function(){					
+					$("#dialog_<?php echo $i; ?>").dialog({
+						width: 500,
+						height: 200,
+						show: 'slide',						
+						modal: true,
+						title: $(this).attr('title'),						
+						buttons: [{text: "Ok", click: function() { $(this).dialog("close"); }}] 
+					});
+				});
+			});
+		</script>
+        <?php if(isEmptyString($commodity['notes'])){ ?>
+        ---
+        <?php } else { ?>
+        <a href="javascript: doNothing();" class="notes" id="notes_<?php echo $i; ?>_trigger" title="Notes for <?php echo $commodity['name']; ?>"><img src="<?php echo $this->baseUrl('images/notes_plus.png'); ?>" /></a>
+        <div id="dialog_<?php echo $i; ?>" class="hidden" style="width:500px; height:250px;">
+          <label><?php echo nl2br($commodity['notes']); ?></label>
+        </div>
+        <?php } ?></td>
+    </tr>
+    <?php $i++;
+	 }	
+	?>
+  </table>
+  <br />
+  <table class="formtable">
+    <thead>
+      <tr class="sectionheading">
+        <td><?php echo $this->translate("commodityprice_comments_label"); ?></td>
+      </tr>
+    </thead>
+    <tr>
+      <td><?php echo nl2br($pricesubmission->getComments()); ?></td>
+    </tr>
+  </table>
+  <table class="formtable <?php echo $hide_on_print_class; ?> formactions">
+    <tfoot>
+      <tr>
+        <td class="bottombuttons"></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

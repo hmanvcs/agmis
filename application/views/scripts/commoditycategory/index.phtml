@@ -1,0 +1,94 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$commoditycategory = new CommodityCategory(); 
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("commoditycategory_pagetitle_new"); 
+	$posturl = $this->baseUrl("commoditycategory/create");
+	$button_title = $this->translate("commoditycategory_button_new"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$commoditycategory->populate(decode($request->id));
+		$title = sprintf($this->translate("commoditycategory_pagetitle_edit"), $commoditycategory->getName()); 
+		$button_title = $this->translate("commoditycategory_button_edit");
+		$posturl = $this->baseUrl("commoditycategory/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$commoditycategory->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		$("#commoditycategoryform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				name: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				name: "<?php echo $this->translate("commoditycategory_name_error"); ?>"
+			}
+		});
+	}); 
+</script>
+
+<div class="pageinfo"><?php echo $this->translate("commoditycategory_page_info"); ?></div>
+<form id="commoditycategoryform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td class="pagedescription"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commoditycategory_name_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="name" id="name" value="<?php echo $commoditycategory->getName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("commoditycategory_parent_label"); ?></td>
+      <td><?php
+       	$parentdropdown = new Zend_Form_Element_Select('parentid',
+							array(
+								'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getParentCommodityCategoryValues($commoditycategory->getID())),								'view' => new Zend_View(),
+								'decorators' => array('ViewHelper'),
+								'class' => array('filterselect', 'chzn-select'),
+							)
+						);
+		$parentdropdown->setValue($commoditycategory->getParentID()); 
+		echo $parentdropdown->render(); 
+      ?></td>
+    </tr>    
+    <tr>
+      <td class="label"><?php echo $this->translate("commoditycategory_description_label"); ?>:</td>
+      <td><textarea class="expanding" id="description" name="description"><?php echo $commoditycategory->getDescription(); ?></textarea></td>
+    </tr>
+  </table>
+  <table class="formtable formactions">
+    <tfoot>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("commoditycategory/list"); ?>" title="Cancel">Cancel</a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="CommodityCategory" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($commoditycategory->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>
